@@ -7,4 +7,4 @@ if ! VERSION=$("$ROOT_DIR/version"); then
     exit 1
 fi
 
-"$ROOT_DIR/python" -m twine upload "${ROOT_DIR}/dist/__PACKAGE_LOWER__-${VERSION}-*.whl"
+"$ROOT_DIR/python" -m twine upload "${ROOT_DIR}/dist/mwfilter-${VERSION}-*.whl"

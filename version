@@ -2,4 +2,4 @@
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" || exit; pwd)
 
-"$ROOT_DIR/python" -c 'import __PACKAGE_LOWER__; print(__PACKAGE_LOWER__.__version__)'
+"$ROOT_DIR/python" -c 'import mwfilter; print(mwfilter.__version__)'

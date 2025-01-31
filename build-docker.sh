@@ -7,7 +7,7 @@ if ! VERSION=$("$ROOT_DIR/version"); then
     exit 1
 fi
 
-NAME="__PROJECT_NAME__"
+NAME="mwfilter"
 TAG="$NAME:$VERSION"
 LATEST="$NAME:latest"
 

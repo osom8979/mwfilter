@@ -3,14 +3,14 @@
 from sys import exit as sys_exit
 from typing import Callable, List, Optional
 
-from __PACKAGE_LOWER__.apps import run_app
-from __PACKAGE_LOWER__.arguments import (
+from mwfilter.apps import run_app
+from mwfilter.arguments import (
     CMDS,
     PRINTER_ATTR_KEY,
     VERBOSE_LEVEL_2,
     get_default_arguments,
 )
-from __PACKAGE_LOWER__.logging.logging import (
+from mwfilter.logging.logging import (
     SEVERITY_NAME_DEBUG,
     add_default_colored_logging,
     add_default_logging,

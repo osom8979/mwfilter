@@ -1,4 +1,4 @@
-FROM python:__PYTHON_VERSION__-slim as builder
+FROM python:3.12.8-slim as builder
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -16,7 +16,7 @@ RUN pip wheel --no-cache-dir \
     cp dist/*.whl /app/.wheels
 
 # --[[ NEXT STAGE
-FROM python:__PYTHON_VERSION__-slim
+FROM python:3.12.8-slim
 
 WORKDIR /app
 COPY --from=builder /app/.wheels /app/.wheels
@@ -32,5 +32,5 @@ RUN pip install --no-cache /app/.wheels/* && \
             app
 USER app
 
-ENTRYPOINT ["python", "-OO", "-m", "__PACKAGE_LOWER__"]
+ENTRYPOINT ["python", "-OO", "-m", "mwfilter"]
 CMD ["server"]

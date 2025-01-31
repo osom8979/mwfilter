@@ -8,4 +8,4 @@ rm -vrf \
     "$ROOT_DIR/.sphinx_cache/" \
     "$ROOT_DIR/build/" \
     "$ROOT_DIR/dist/" \
-    "$ROOT_DIR/__PACKAGE_LOWER__.egg-info/"
+    "$ROOT_DIR/mwfilter.egg-info/"

@@ -6,16 +6,16 @@ from os import R_OK, access, getcwd
 from os.path import isfile, join
 from typing import Final, List, Optional, Sequence
 
-from __PACKAGE_LOWER__.logging.logging import (
+from mwfilter.logging.logging import (
     DEFAULT_TIMED_ROTATING_WHEN,
     SEVERITIES,
     SEVERITY_NAME_INFO,
     TIMED_ROTATING_WHEN,
 )
-from __PACKAGE_LOWER__.system.environ import get_typed_environ_value as get_eval
+from mwfilter.system.environ import get_typed_environ_value as get_eval
 
-PROG: Final[str] = "__PACKAGE_LOWER__"
-DESCRIPTION: Final[str] = "__PROJECT_DESC__"
+PROG: Final[str] = "mwfilter"
+DESCRIPTION: Final[str] = "MediaWiki Filter"
 EPILOG = f"""
 Apply general debugging options:
   {PROG} -D ...
@@ -47,7 +47,7 @@ VERBOSE_LEVEL_2: Final[int] = 2
 @lru_cache
 def version() -> str:
     # [IMPORTANT] Avoid 'circular import' issues
-    from __PACKAGE_LOWER__ import __version__
+    from mwfilter import __version__
 
     return __version__
 

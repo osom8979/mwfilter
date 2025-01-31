@@ -3,7 +3,7 @@
 from os import environ
 from typing import Dict, Optional, TypeVar, Union, overload
 
-from __PACKAGE_LOWER__.types.string.to_boolean import string_to_boolean
+from mwfilter.types.string.to_boolean import string_to_boolean
 
 DefaultT = TypeVar("DefaultT", str, bool, int, float)
 

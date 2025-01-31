@@ -1,10 +1,10 @@
-# __PROJECT_NAME__
+# mwfilter
 
-[![PyPI](https://img.shields.io/pypi/v/__PROJECT_NAME__?style=flat-square)](https://pypi.org/project/__PROJECT_NAME__/)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/__PROJECT_NAME__?style=flat-square)
-[![GitHub](https://img.shields.io/github/license/__GITHUB_ID__/__PROJECT_NAME__?style=flat-square)](https://github.com/__GITHUB_ID__/__PROJECT_NAME__/)
+[![PyPI](https://img.shields.io/pypi/v/mwfilter?style=flat-square)](https://pypi.org/project/mwfilter/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mwfilter?style=flat-square)
+[![GitHub](https://img.shields.io/github/license/osom8979/mwfilter?style=flat-square)](https://github.com/osom8979/mwfilter/)
 
-__PROJECT_DESC__
+MediaWiki Filter
 
 ## How to initialize boilerplate
 
@@ -37,4 +37,4 @@ __PROJECT_DESC__
 ## License
 
 See the [LICENSE](./LICENSE) file for details. In summary,
-**__PROJECT_NAME__** is licensed under the **MIT license**.
+**mwfilter** is licensed under the **MIT license**.

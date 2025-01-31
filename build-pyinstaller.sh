@@ -17,9 +17,9 @@ fi
 source "$ACTIVATE_PATH"
 
 cd "$ROOT_DIR" && pyinstaller \
-    --name "__PROJECT_NAME__" \
+    --name "mwfilter" \
     --onefile \
     --clean \
     --noconsole \
-    --add-data "__PACKAGE_LOWER__/assets:assets" \
+    --add-data "mwfilter/assets:assets" \
     "$ROOT_DIR/main.py"

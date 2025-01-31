@@ -1,7 +1,7 @@
-image: python:__PYTHON_MAJOR__.__PYTHON_MINOR__
+image: python:3.12
 
 variables:
-  USE_SYSTEM_PYTHON: __PYTHON_MAJOR__
+  USE_SYSTEM_PYTHON: 3
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 cache:

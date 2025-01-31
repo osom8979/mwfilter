@@ -18,7 +18,7 @@ from logging.handlers import TimedRotatingFileHandler
 from sys import stdout
 from typing import Final, Literal, Optional, Sequence, Union, get_args
 
-DEFAULT_LOGGER_NAME: Final[str] = "__PACKAGE_LOWER__"
+DEFAULT_LOGGER_NAME: Final[str] = "mwfilter"
 
 logger = getLogger(DEFAULT_LOGGER_NAME)
 
@@ -224,7 +224,7 @@ def add_default_rotate_file_logging(
 
 
 def add_default_colored_logging(level=DEBUG) -> None:
-    from __PACKAGE_LOWER__.logging.formatters.colored import ColoredFormatter
+    from mwfilter.logging.formatters.colored import ColoredFormatter
 
     formatter = ColoredFormatter(
         fmt=DEFAULT_FORMAT,

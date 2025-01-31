@@ -27,6 +27,6 @@ ARGS=("--config=${ROOT_DIR}/flake8.ini")
 print_message "flake8 ${ARGS[*]}"
 
 "$ROOT_DIR/python" -m flake8 "${ARGS[@]}" \
-    "$ROOT_DIR/__PACKAGE_LOWER__/" \
+    "$ROOT_DIR/mwfilter/" \
     "$ROOT_DIR/tester/" \
     "$ROOT_DIR/setup.py"

@@ -68,6 +68,6 @@ fi
 print_message "isort ${ARGS[*]}"
 
 "$ROOT_DIR/python" -m isort "${ARGS[@]}" \
-    "$ROOT_DIR/__PACKAGE_LOWER__/" \
+    "$ROOT_DIR/mwfilter/" \
     "$ROOT_DIR/tester/" \
     "$ROOT_DIR/setup.py"

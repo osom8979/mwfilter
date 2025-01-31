@@ -2,4 +2,4 @@
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" || exit; pwd)
 
-"$ROOT_DIR/python" -m pip uninstall __PROJECT_NAME__
+"$ROOT_DIR/python" -m pip uninstall mwfilter
