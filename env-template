@@ -1,0 +1,6 @@
+MEDIAWIKI_HOSTNAME=<mediawiki-url>
+MEDIAWIKI_USERNAME=<mediawiki-username>
+MEDIAWIKI_PASSWORD=<mediawiki-password>
+OUTPUT_DIR=output
+CACHE_DIR=cache
+SETTINGS_PAGE=Mwfilter:Settings

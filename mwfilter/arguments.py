@@ -2,14 +2,13 @@
 
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from functools import lru_cache
+from os import environ
 from typing import Final, List, Optional
+
+from dotenv import load_dotenv
 
 PROG: Final[str] = "mwfilter"
 DESCRIPTION: Final[str] = "MediaWiki Filter"
-EPILOG = f"""
-Apply general debugging options:
-  {PROG} -D ...
-"""
 
 
 @lru_cache
@@ -21,17 +20,19 @@ def version() -> str:
 
 
 def default_argument_parser() -> ArgumentParser:
-    parser = ArgumentParser(
-        prog=PROG,
-        description=DESCRIPTION,
-        epilog=EPILOG,
-        formatter_class=RawDescriptionHelpFormatter,
-    )
+    load_dotenv()
+
+    parser = ArgumentParser(prog=PROG, description=DESCRIPTION)
+    parser.add_argument("--output", "-o", default=environ.get("OUTPUT_DIR"))
+    parser.add_argument("--cache", default=environ.get("CACHE_DIR"))
+    parser.add_argument("--username", "-u", default=environ.get("MEDIAWIKI_USERNAME"))
+    parser.add_argument("--password", "-p", default=environ.get("MEDIAWIKI_PASSWORD"))
+    parser.add_argument("--settings-page", default=environ.get("SETTINGS_PAGE"))
+    parser.add_argument("--version", "-V", action="version", version=version())
     parser.add_argument(
-        "--version",
-        "-V",
-        action="version",
-        version=version(),
+        "hostname",
+        nargs="?",
+        default=environ.get("MEDIAWIKI_HOSTNAME"),
     )
     return parser
 
