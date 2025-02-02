@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 
+import json
 import os
+import pickle
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from glob import glob
 from io import StringIO
-from json import dumps, loads
 from logging import INFO, NOTSET, Formatter, StreamHandler, getLogger
 from pathlib import Path
+from re import Pattern
+from re import compile as re_compile
 from sys import exit as sys_exit
 from sys import stderr, stdout
 from typing import Any, Dict, List, Optional
 
 from mwclient import Site
 from mwclient.page import Page
-from pypandoc import convert_file
+from pypandoc import convert_file, convert_text
 from tqdm import tqdm
 from type_serialize import deserialize, serialize
 
@@ -36,21 +39,21 @@ class Statistics:
 
 @dataclass
 class PageMeta:
-    namespace: int
-    name: str
-    page_title: str
-    base_title: str
-    base_name: str
-    touched: datetime
-    revision: int
-    exists: bool
-    length: int
-    redirect: bool
-    page_id: int
-    protection: Dict[Any, Any]
-    content_model: str
-    page_language: str
-    restriction_types: List[str]
+    namespace: int = 0
+    name: str = field(default_factory=str)
+    page_title: str = field(default_factory=str)
+    base_title: str = field(default_factory=str)
+    base_name: str = field(default_factory=str)
+    touched: datetime = datetime.now()
+    revision: int = 0
+    exists: bool = False
+    length: int = 0
+    redirect: bool = False
+    page_id: int = 0
+    protection: Dict[Any, Any] = field(default_factory=dict)
+    content_model: str = field(default_factory=str)
+    page_language: str = field(default_factory=str)
+    restriction_types: List[str] = field(default_factory=list)
     edit_time: Optional[datetime] = None
     last_rev_time: Optional[datetime] = None
 
@@ -77,34 +80,37 @@ class PageMeta:
         )
 
 
+@dataclass
 class ConvertInfo:
-    _meta: PageMeta
+    meta_path: str = str()
+    text_path: str = str()
+    meta: PageMeta = field(default_factory=lambda: PageMeta())
+    text: str = str()
 
-    def __init__(self, meta_path: Path, text_path: Path):
-        self._meta_path = meta_path
-        self._text_path = text_path
-        self._meta = deserialize(loads(self._meta_path.read_bytes()), PageMeta)
-        self._text = self._text_path.read_text()
+    @classmethod
+    def from_paths(cls, meta_path: Path, text_path: Path):
+        return cls(
+            meta_path=str(meta_path),
+            text_path=str(text_path),
+            meta=deserialize(json.loads(meta_path.read_bytes()), PageMeta),
+            text=text_path.read_text(),
+        )
 
     @property
     def title(self):
-        return self._meta.name
+        return self.meta.name
 
     @property
     def filename(self):
-        return self._meta.name.removeprefix("/")
+        return self.meta.name.removeprefix("/")
 
     @property
     def date(self):
-        return self._meta.touched.date().isoformat()
+        return self.meta.touched.date().isoformat()
 
     @property
     def url_title(self):
         return urllib.parse.quote(self.title)
-
-    @property
-    def text(self):
-        return self._text
 
     @property
     def yaml_frontmatter(self):
@@ -118,7 +124,7 @@ class ConvertInfo:
 
     def as_markdown(self) -> str:
         return self.yaml_frontmatter + convert_file(
-            self._text_path,
+            self.text_path,
             to="markdown",
             format="mediawiki",
         )
@@ -126,11 +132,92 @@ class ConvertInfo:
 
 @dataclass
 class MwSettings:
+    allow_pages: List[str] = field(default_factory=list)
+    allow_patterns: List[Pattern[str]] = field(default_factory=list)
+    deny_pages: List[str] = field(default_factory=list)
+    deny_patterns: List[Pattern[str]] = field(default_factory=list)
+
     @classmethod
     def from_convert_info(cls, info: ConvertInfo):
-        # info_content = info.text
-        # TODO: parse info_content
-        return cls()
+        info_json = convert_text(info.text, to="json", format="mediawiki")
+        info_obj = json.loads(info_json)
+        assert isinstance(info_obj, dict)
+        blocks = info_obj["blocks"]
+        assert isinstance(blocks, list)
+
+        allow_pages: List[str] = list()
+        allow_patterns: List[str] = list()
+        deny_pages: List[str] = list()
+        deny_patterns: List[str] = list()
+
+        option_cursor: Optional[List[str]] = None
+
+        for block in blocks:
+            assert isinstance(block, dict)
+            t = block["t"]
+            c = block["c"]
+            assert isinstance(t, str)
+            assert isinstance(c, list)
+            if t == "Header":
+                header_keyname = c[1][0]
+                assert isinstance(header_keyname, str)
+                assert header_keyname.islower()
+                match header_keyname:
+                    case "allowpages":
+                        option_cursor = allow_pages
+                    case "allowpatterns":
+                        option_cursor = allow_patterns
+                    case "denypages":
+                        option_cursor = deny_pages
+                    case "denypatterns":
+                        option_cursor = deny_patterns
+                    case _:
+                        option_cursor = None
+            elif t == "BulletList":
+                if option_cursor is not None:
+                    for item in c:
+                        assert isinstance(item, list)
+                        assert len(item) == 1
+                        it = item[0]["t"]
+                        ic = item[0]["c"]
+                        assert isinstance(it, str)
+                        assert isinstance(ic, list)
+                        ic0 = ic[0]
+                        assert isinstance(ic0, dict)
+                        ic0t = ic0["t"]
+                        ic0c = ic0["c"]
+                        assert isinstance(ic0t, str)
+                        assert isinstance(ic0c, str)
+                        if ic0t == "Str":
+                            option_cursor.append(ic0c)
+            else:
+                option_cursor = None
+
+        return cls(
+            allow_pages=allow_pages,
+            allow_patterns=[re_compile(p) for p in allow_patterns],
+            deny_pages=deny_pages,
+            deny_patterns=[re_compile(p) for p in deny_patterns],
+        )
+
+    def filter(self, info: ConvertInfo) -> bool:
+        if self.allow_pages and info.title in self.allow_pages:
+            return True
+
+        if self.allow_patterns:
+            for pattern in self.deny_patterns:
+                if pattern.match(info.title) is not None:
+                    return True
+
+        if self.deny_pages and info.title in self.deny_pages:
+            return False
+
+        if self.deny_patterns:
+            for pattern in self.deny_patterns:
+                if pattern.match(info.title) is not None:
+                    return False
+
+        return True
 
 
 def silent_unnecessary_loggers() -> None:
@@ -194,7 +281,7 @@ def download_pages(
                 if not meta_path.is_file():
                     meta = PageMeta.from_page(page)
                     meta_obj = serialize(meta)
-                    meta_data = dumps(meta_obj)
+                    meta_data = json.dumps(meta_obj)
                     meta_path.write_text(meta_data)
                 if not text_path.is_file():
                     text = page.text()
@@ -204,7 +291,7 @@ def download_pages(
                 progress_bar.update()
 
 
-def create_convert_infos(cache: str) -> List[ConvertInfo]:
+def create_convert_infos(cache: str, *, use_picking=False) -> List[ConvertInfo]:
     result = list()
     meta_filenames = glob("*.json", root_dir=cache)
     meta_filenames.sort()
@@ -214,7 +301,16 @@ def create_convert_infos(cache: str) -> List[ConvertInfo]:
             try:
                 meta_path = Path(cache) / meta_filename
                 text_path = Path(cache) / f"{page_id}.wiki"
-                result.append(ConvertInfo(meta_path, text_path))
+                info_path = Path(cache) / f"{page_id}.info"
+
+                if info_path.is_file():
+                    info = pickle.loads(info_path.read_bytes())
+                else:
+                    info = ConvertInfo.from_paths(meta_path, text_path)
+                    if use_picking:
+                        info_path.write_bytes(pickle.dumps(info))
+
+                result.append(info)
             finally:
                 progress_bar.update()
     return result
@@ -267,7 +363,7 @@ def app(
     logger = default_logger()
 
     if skip_download:
-        logger.debug("Skip download step")
+        logger.info("Skip download step")
     else:
         logger.info("Start download step ...")
         download_pages(cache, hostname, password, username)
@@ -275,7 +371,8 @@ def app(
     logger.info("Read all cached pages ...")
     infos = create_convert_infos(cache)
 
-    # settings = find_settings(infos, settings_page)
+    settings = find_settings(infos, settings_page)
+    infos = list(filter(lambda i: settings.filter(i), infos))
 
     logger.info("Write all output pages ...")
     with tqdm(total=len(infos)) as progress_bar:

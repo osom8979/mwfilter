@@ -2,10 +2,14 @@
 # https://plugins.jetbrains.com/plugin/12089-dictionary
 
 activeusers
+allowpages
+allowpatterns
 allpages
 allpagescount
 asctime
 datefmt
+denypages
+denypatterns
 dockerignore
 ghcr
 levelname
