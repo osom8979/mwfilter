@@ -103,7 +103,7 @@ class ConvertInfo:
 
     @property
     def filename(self):
-        return self.meta.name.removeprefix("/")
+        return self.meta.name.removeprefix("/").replace(" ", "_")
 
     @property
     def date(self):
@@ -375,14 +375,14 @@ def app(
 
     settings = find_settings(infos, settings_page)
     infos = list(filter(lambda i: settings.filter(i), infos))
-    info_navs = list()
+    info_navs = dict()
 
     logger.info("Write all output pages ...")
     with tqdm(total=len(infos)) as progress_bar:
         for info in infos:
             try:
                 info_filename = f"{info.filename}.md"
-                info_navs.append({info.title: info_filename})
+                info_navs[info.title] = info_filename
                 output_path = Path(output) / info_filename
                 if output_path.is_file():
                     continue
@@ -400,12 +400,12 @@ def app(
             mkdocs_obj = dict()
 
         assert isinstance(mkdocs_obj, dict)
-        mkdocs_nav = mkdocs_obj.get("nav", list())
-        mkdocs_nav.extend(info_navs)
-
-        mkdocs_obj["nav"] = mkdocs_nav
-        with mkdocs_yml_path.open("wt", encoding="utf-8") as f:
-            yaml.dump(mkdocs_obj, f, default_flow_style=False, allow_unicode=True)
+        # mkdocs_nav = mkdocs_obj.get("nav", list())
+        # mkdocs_nav.extend(info_navs)
+        #
+        # mkdocs_obj["nav"] = mkdocs_nav
+        # with mkdocs_yml_path.open("wt", encoding="utf-8") as f:
+        #     yaml.dump(mkdocs_obj, f, default_flow_style=False, allow_unicode=True)
 
 
 def main(cmdline: Optional[List[str]] = None) -> int:
