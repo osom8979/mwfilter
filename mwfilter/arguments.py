@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from argparse import ArgumentParser, Namespace
 from functools import lru_cache
 from os import environ
 from typing import Final, List, Optional
@@ -29,6 +29,7 @@ def default_argument_parser() -> ArgumentParser:
     parser.add_argument("--password", "-p", default=environ.get("MEDIAWIKI_PASSWORD"))
     parser.add_argument("--settings-page", default=environ.get("SETTINGS_PAGE"))
     parser.add_argument("--version", "-V", action="version", version=version())
+    parser.add_argument("--skip-download", action="store_true", default=False)
     parser.add_argument(
         "hostname",
         nargs="?",

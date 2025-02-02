@@ -135,5 +135,6 @@ MANIFEST
 ### Project ###
 .env*
 .venv/
-output
-cache
+output/
+pages/
+cache/

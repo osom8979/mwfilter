@@ -1,6 +1,9 @@
 # IDEA plugin: Dictionary
 # https://plugins.jetbrains.com/plugin/12089-dictionary
 
+activeusers
+allpages
+allpagescount
 asctime
 datefmt
 dockerignore
@@ -10,4 +13,5 @@ meipass
 mwfilter
 nocov
 pythonpath
+siteinfo
 vimspector
