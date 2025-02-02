@@ -16,6 +16,7 @@ from sys import exit as sys_exit
 from sys import stderr, stdout
 from typing import Any, Dict, List, Optional
 
+import yaml
 from mwclient import Site
 from mwclient.page import Page
 from pypandoc import convert_file, convert_text
@@ -339,6 +340,7 @@ def app(
     password: Optional[str] = None,
     output: Optional[str] = None,
     cache: Optional[str] = None,
+    mkdocs_yml: Optional[str] = None,
     settings_page: Optional[str] = None,
     skip_download=False,
 ) -> None:
@@ -373,18 +375,37 @@ def app(
 
     settings = find_settings(infos, settings_page)
     infos = list(filter(lambda i: settings.filter(i), infos))
+    info_navs = list()
 
     logger.info("Write all output pages ...")
     with tqdm(total=len(infos)) as progress_bar:
         for info in infos:
             try:
-                output_path = Path(output) / f"{info.filename}.md"
+                info_filename = f"{info.filename}.md"
+                info_navs.append({info.title: info_filename})
+                output_path = Path(output) / info_filename
                 if output_path.is_file():
                     continue
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.write_text(info.as_markdown())
             finally:
                 progress_bar.update()
+
+    if mkdocs_yml:
+        mkdocs_yml_path = Path(mkdocs_yml)
+        if mkdocs_yml_path.is_file():
+            with mkdocs_yml_path.open("rt", encoding="utf-8") as f:
+                mkdocs_obj = yaml.safe_load(f)
+        else:
+            mkdocs_obj = dict()
+
+        assert isinstance(mkdocs_obj, dict)
+        mkdocs_nav = mkdocs_obj.get("nav", list())
+        mkdocs_nav.extend(info_navs)
+
+        mkdocs_obj["nav"] = mkdocs_nav
+        with mkdocs_yml_path.open("wt", encoding="utf-8") as f:
+            yaml.dump(mkdocs_obj, f, default_flow_style=False, allow_unicode=True)
 
 
 def main(cmdline: Optional[List[str]] = None) -> int:
@@ -396,6 +417,7 @@ def main(cmdline: Optional[List[str]] = None) -> int:
             password=args.password,
             output=args.output,
             cache=args.cache,
+            mkdocs_yml=args.mkdocs_yml,
             settings_page=args.settings_page,
             skip_download=args.skip_download,
         )

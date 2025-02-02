@@ -23,18 +23,23 @@ def default_argument_parser() -> ArgumentParser:
     load_dotenv()
 
     parser = ArgumentParser(prog=PROG, description=DESCRIPTION)
-    parser.add_argument("--output", "-o", default=environ.get("OUTPUT_DIR"))
-    parser.add_argument("--cache", default=environ.get("CACHE_DIR"))
+    parser.add_argument("--version", "-V", action="version", version=version())
+    parser.add_argument("--output", "-o", default=environ.get("OUTPUT_DIR", "docs"))
+    parser.add_argument("--cache", default=environ.get("CACHE_DIR", "cache"))
     parser.add_argument("--username", "-u", default=environ.get("MEDIAWIKI_USERNAME"))
     parser.add_argument("--password", "-p", default=environ.get("MEDIAWIKI_PASSWORD"))
-    parser.add_argument("--settings-page", default=environ.get("SETTINGS_PAGE"))
-    parser.add_argument("--version", "-V", action="version", version=version())
+    parser.add_argument("--mkdocs-yml", default=environ.get("MKDOCS_YML", "mkdocs.yml"))
     parser.add_argument("--skip-download", action="store_true", default=False)
+    parser.add_argument(
+        "--settings-page",
+        default=environ.get("SETTINGS_PAGE", "Mwfilter:Settings"),
+    )
     parser.add_argument(
         "hostname",
         nargs="?",
         default=environ.get("MEDIAWIKI_HOSTNAME"),
     )
+
     return parser
 
 

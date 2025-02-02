@@ -1,6 +1,7 @@
 MEDIAWIKI_HOSTNAME=<mediawiki-url>
 MEDIAWIKI_USERNAME=<mediawiki-username>
 MEDIAWIKI_PASSWORD=<mediawiki-password>
-OUTPUT_DIR=pages
+OUTPUT_DIR=docs
 CACHE_DIR=cache
+MKDOCS_YML=mkdocs.yml
 SETTINGS_PAGE=Mwfilter:Settings

@@ -135,6 +135,9 @@ MANIFEST
 ### Project ###
 .env*
 .venv/
+cache/
+docs/
 output/
 pages/
-cache/
+site/
+mkdocs.yml
