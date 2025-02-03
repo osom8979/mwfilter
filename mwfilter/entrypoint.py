@@ -14,7 +14,7 @@ from re import Pattern
 from re import compile as re_compile
 from sys import exit as sys_exit
 from sys import stderr, stdout
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Final, List, Optional, Sequence, Tuple
 
 import yaml
 from mwclient import Site
@@ -30,6 +30,38 @@ from mwfilter.arguments import (
     DEFAULT_MKDOCS_YML,
     DEFAULT_SETTINGS_PAGE,
     get_default_arguments,
+)
+
+MAIN_NAMESPACE: Final[int] = 0
+PROJ_NAMESPACE: Final[int] = 4
+FILE_NAMESPACE: Final[int] = 6
+TEMP_NAMESPACE: Final[int] = 10
+
+DOWNLOAD_NAMESPACES: Final[Sequence[int]] = (
+    MAIN_NAMESPACE,
+    PROJ_NAMESPACE,
+    TEMP_NAMESPACE,
+)
+
+_NAMESPACE_MAP: Final[Sequence[Tuple[int, str]]] = (
+    (-2, "Media"),
+    (-1, "Special"),
+    (0, "(Main)"),
+    (1, "Talk"),
+    (2, "User"),
+    (3, "User talk"),
+    (4, "Project"),
+    (5, "Project talk"),
+    (6, "File"),
+    (7, "File talk"),
+    (8, "MediaWiki"),
+    (9, "MediaWiki talk"),
+    (10, "Template"),
+    (11, "Template talk"),
+    (12, "Help"),
+    (13, "Help talk"),
+    (14, "Category"),
+    (15, "Category talk"),
 )
 
 
@@ -114,7 +146,7 @@ class ConvertInfo:
 
     @property
     def filename(self):
-        return pagename_to_filename(self.meta.name)
+        return pagename_to_filename(self.title)
 
     @property
     def date(self):
@@ -277,7 +309,13 @@ def download_pages(
     password: Optional[str] = None,
     mediawiki_path=DEFAULT_MEDIAWIKI_PATH,
     cache=DEFAULT_CACHE_DIR,
+    namespaces: Optional[Sequence[int]] = None,
 ) -> None:
+    if namespaces is None:
+        namespaces = DOWNLOAD_NAMESPACES
+
+    assert namespaces is not None
+    assert 1 <= len(namespaces)
     assert os.path.isdir(cache)
 
     site = Site(hostname, path=mediawiki_path)
@@ -286,34 +324,45 @@ def download_pages(
         site.login(username, password)
 
     with tqdm(total=request_all_pages_count(site)) as progress_bar:
-        for page in site.allpages():
-            try:
-                assert isinstance(page, Page)
-                filename = pagename_to_filename(page.name)
-                json_path = Path(cache) / f"{filename}.json"
-                wiki_path = Path(cache) / f"{filename}.wiki"
+        for namespace in namespaces:
+            for page in site.allpages(namespace=namespace):
+                try:
+                    assert isinstance(page, Page)
+                    assert isinstance(page.name, str)
+                    assert isinstance(page.namespace, int)
 
-                json_path.parent.mkdir(parents=True, exist_ok=True)
+                    if page.namespace in (FILE_NAMESPACE, TEMP_NAMESPACE):
+                        default_namespace = Site.default_namespaces[page.namespace]
+                        page_name = f"{default_namespace}:{page.page_title}"
+                    else:
+                        page_name = page.name
 
-                if not json_path.is_file():
-                    meta = PageMeta.from_page(page)
-                    meta_obj = serialize(meta)
-                    meta_data = json.dumps(meta_obj)
-                    json_path.write_text(meta_data)
+                    filename = pagename_to_filename(page_name)
+                    json_path = Path(cache) / f"{filename}.json"
+                    wiki_path = Path(cache) / f"{filename}.wiki"
 
-                if not wiki_path.is_file():
-                    text = page.text()
-                    wiki_path.write_text(text)
+                    json_path.parent.mkdir(parents=True, exist_ok=True)
 
-                progress_bar.write(filename)
-            finally:
-                progress_bar.update()
+                    if not json_path.is_file():
+                        meta = PageMeta.from_page(page)
+                        meta.name = page_name
+                        meta_obj = serialize(meta)
+                        meta_data = json.dumps(meta_obj)
+                        json_path.write_text(meta_data)
+
+                    if not wiki_path.is_file():
+                        text = page.text()
+                        wiki_path.write_text(text)
+
+                    progress_bar.write(f"Write '{page_name}'")
+                finally:
+                    progress_bar.update()
 
 
 def create_convert_infos(cache: str, *, use_picking=False) -> List[ConvertInfo]:
     result = list()
     cache_path = Path(cache)
-    json_filenames = glob("*.json", root_dir=cache_path)
+    json_filenames = glob("*.json", root_dir=cache_path, recursive=True)
     json_filenames.sort()
     with tqdm(total=len(json_filenames)) as progress_bar:
         for json_filename in json_filenames:
@@ -338,7 +387,7 @@ def create_convert_infos(cache: str, *, use_picking=False) -> List[ConvertInfo]:
 
 def find_settings_info(infos: List[ConvertInfo], settings_page: str) -> ConvertInfo:
     for info in infos:
-        if info.title == settings_page:
+        if info.meta.base_name == settings_page:
             return info
     raise IndexError("Not found settings page")
 
@@ -388,6 +437,7 @@ def run_app(
             password=password,
             mediawiki_path=mediawiki_path,
             cache=cache,
+            namespaces=DOWNLOAD_NAMESPACES,
         )
 
     logger.info("Read all cached pages ...")
@@ -400,8 +450,7 @@ def run_app(
     with tqdm(total=len(infos)) as progress_bar:
         for info in infos:
             try:
-                info_filename = f"{info.filename}.md"
-                output_path = Path(docs) / info_filename
+                output_path = Path(docs) / f"{info.filename}.md"
                 if output_path.is_file():
                     continue
                 output_path.parent.mkdir(parents=True, exist_ok=True)
