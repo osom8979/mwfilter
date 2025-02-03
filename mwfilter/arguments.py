@@ -10,6 +10,12 @@ from dotenv import load_dotenv
 PROG: Final[str] = "mwfilter"
 DESCRIPTION: Final[str] = "MediaWiki Filter"
 
+DEFAULT_CACHE_DIR: Final[str] = "cache"
+DEFAULT_DOCS_DIR: Final[str] = "docs"
+DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
+DEFAULT_SETTINGS_PAGE: Final[str] = "Mwfilter:Settings"
+DEFAULT_MEDIAWIKI_PATH: Final[str] = "/"
+
 
 @lru_cache
 def version() -> str:
@@ -23,16 +29,32 @@ def default_argument_parser() -> ArgumentParser:
     load_dotenv()
 
     parser = ArgumentParser(prog=PROG, description=DESCRIPTION)
-    parser.add_argument("--version", "-V", action="version", version=version())
-    parser.add_argument("--output", "-o", default=environ.get("OUTPUT_DIR", "docs"))
-    parser.add_argument("--cache", default=environ.get("CACHE_DIR", "cache"))
     parser.add_argument("--username", "-u", default=environ.get("MEDIAWIKI_USERNAME"))
     parser.add_argument("--password", "-p", default=environ.get("MEDIAWIKI_PASSWORD"))
-    parser.add_argument("--mkdocs-yml", default=environ.get("MKDOCS_YML", "mkdocs.yml"))
-    parser.add_argument("--skip-download", action="store_true", default=False)
+    parser.add_argument("--cache", default=environ.get("CACHE_DIR", DEFAULT_CACHE_DIR))
+    parser.add_argument("--docs", default=environ.get("DOCS_DIR", DEFAULT_DOCS_DIR))
+    parser.add_argument(
+        "--mkdocs-yml",
+        default=environ.get("MKDOCS_YML", DEFAULT_MKDOCS_YML),
+    )
+    parser.add_argument(
+        "--mediawiki-path",
+        default=environ.get("MEDIAWIKI_PATH", DEFAULT_MEDIAWIKI_PATH),
+    )
     parser.add_argument(
         "--settings-page",
-        default=environ.get("SETTINGS_PAGE", "Mwfilter:Settings"),
+        default=environ.get("SETTINGS_PAGE", DEFAULT_SETTINGS_PAGE),
+    )
+    parser.add_argument(
+        "--skip-download",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=version(),
     )
     parser.add_argument(
         "hostname",

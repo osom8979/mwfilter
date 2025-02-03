@@ -23,7 +23,18 @@ from pypandoc import convert_file, convert_text
 from tqdm import tqdm
 from type_serialize import deserialize, serialize
 
-from mwfilter.arguments import get_default_arguments
+from mwfilter.arguments import (
+    DEFAULT_CACHE_DIR,
+    DEFAULT_DOCS_DIR,
+    DEFAULT_MEDIAWIKI_PATH,
+    DEFAULT_MKDOCS_YML,
+    DEFAULT_SETTINGS_PAGE,
+    get_default_arguments,
+)
+
+
+def pagename_to_filename(pagename: str) -> str:
+    return pagename.removeprefix("/").replace(" ", "_")
 
 
 @dataclass
@@ -103,7 +114,7 @@ class ConvertInfo:
 
     @property
     def filename(self):
-        return self.meta.name.removeprefix("/").replace(" ", "_")
+        return pagename_to_filename(self.meta.name)
 
     @property
     def date(self):
@@ -260,13 +271,16 @@ def request_all_pages_count(site: Site):
 
 
 def download_pages(
-    cache: str,
     hostname: str,
+    *,
     username: Optional[str] = None,
     password: Optional[str] = None,
-    path="/",
+    mediawiki_path=DEFAULT_MEDIAWIKI_PATH,
+    cache=DEFAULT_CACHE_DIR,
 ) -> None:
-    site = Site(hostname, path=path)
+    assert os.path.isdir(cache)
+
+    site = Site(hostname, path=mediawiki_path)
 
     if username and password:
         site.login(username, password)
@@ -275,41 +289,46 @@ def download_pages(
         for page in site.allpages():
             try:
                 assert isinstance(page, Page)
-                title = page.name
-                page_id = page.pageid
-                meta_path = Path(cache) / f"{page_id}.json"
-                text_path = Path(cache) / f"{page_id}.wiki"
-                if not meta_path.is_file():
+                filename = pagename_to_filename(page.name)
+                json_path = Path(cache) / f"{filename}.json"
+                wiki_path = Path(cache) / f"{filename}.wiki"
+
+                json_path.parent.mkdir(parents=True, exist_ok=True)
+
+                if not json_path.is_file():
                     meta = PageMeta.from_page(page)
                     meta_obj = serialize(meta)
                     meta_data = json.dumps(meta_obj)
-                    meta_path.write_text(meta_data)
-                if not text_path.is_file():
+                    json_path.write_text(meta_data)
+
+                if not wiki_path.is_file():
                     text = page.text()
-                    text_path.write_text(text)
-                progress_bar.write(title)
+                    wiki_path.write_text(text)
+
+                progress_bar.write(filename)
             finally:
                 progress_bar.update()
 
 
 def create_convert_infos(cache: str, *, use_picking=False) -> List[ConvertInfo]:
     result = list()
-    meta_filenames = glob("*.json", root_dir=cache)
-    meta_filenames.sort()
-    with tqdm(total=len(meta_filenames)) as progress_bar:
-        for meta_filename in meta_filenames:
-            page_id = os.path.splitext(meta_filename)[0]
+    cache_path = Path(cache)
+    json_filenames = glob("*.json", root_dir=cache_path)
+    json_filenames.sort()
+    with tqdm(total=len(json_filenames)) as progress_bar:
+        for json_filename in json_filenames:
+            filename = os.path.splitext(json_filename)[0]
             try:
-                meta_path = Path(cache) / meta_filename
-                text_path = Path(cache) / f"{page_id}.wiki"
-                info_path = Path(cache) / f"{page_id}.info"
+                json_path = cache_path / json_filename
+                wiki_path = cache_path / f"{filename}.wiki"
+                pickle_path = cache_path / f"{filename}.pickle"
 
-                if info_path.is_file():
-                    info = pickle.loads(info_path.read_bytes())
+                if pickle_path.is_file():
+                    info = pickle.loads(pickle_path.read_bytes())
                 else:
-                    info = ConvertInfo.from_paths(meta_path, text_path)
+                    info = ConvertInfo.from_paths(json_path, wiki_path)
                     if use_picking:
-                        info_path.write_bytes(pickle.dumps(info))
+                        pickle_path.write_bytes(pickle.dumps(info))
 
                 result.append(info)
             finally:
@@ -334,31 +353,26 @@ def find_settings(infos: List[ConvertInfo], settings_page: Optional[str]) -> MwS
     return MwSettings()
 
 
-def app(
-    hostname: Optional[str] = None,
+def run_app(
+    hostname: str,
+    *,
     username: Optional[str] = None,
     password: Optional[str] = None,
-    output: Optional[str] = None,
-    cache: Optional[str] = None,
-    mkdocs_yml: Optional[str] = None,
-    settings_page: Optional[str] = None,
+    cache=DEFAULT_CACHE_DIR,
+    docs=DEFAULT_DOCS_DIR,
+    mediawiki_path=DEFAULT_MEDIAWIKI_PATH,
+    mkdocs_yml=DEFAULT_MKDOCS_YML,
+    settings_page=DEFAULT_SETTINGS_PAGE,
     skip_download=False,
 ) -> None:
-    if not hostname:
-        raise ValueError("The 'url' argument is required")
-    if not output:
-        raise ValueError("The 'output' argument is required")
-    if not cache:
-        raise ValueError("The 'cache' argument is required")
-
-    if not os.path.exists(output):
-        os.makedirs(output, exist_ok=True)
+    if not os.path.exists(docs):
+        os.makedirs(docs, exist_ok=True)
     if not os.path.exists(cache):
         os.makedirs(cache, exist_ok=True)
 
     if not os.path.isdir(cache):
         raise NotADirectoryError("Cache directory is not a directory")
-    if not os.path.isdir(output):
+    if not os.path.isdir(docs):
         raise NotADirectoryError("Output directory is not a directory")
 
     silent_unnecessary_loggers()
@@ -368,22 +382,26 @@ def app(
         logger.info("Skip download step")
     else:
         logger.info("Start download step ...")
-        download_pages(cache, hostname, password, username)
+        download_pages(
+            hostname=hostname,
+            username=username,
+            password=password,
+            mediawiki_path=mediawiki_path,
+            cache=cache,
+        )
 
     logger.info("Read all cached pages ...")
     infos = create_convert_infos(cache)
 
     settings = find_settings(infos, settings_page)
     infos = list(filter(lambda i: settings.filter(i), infos))
-    info_navs = dict()
 
     logger.info("Write all output pages ...")
     with tqdm(total=len(infos)) as progress_bar:
         for info in infos:
             try:
                 info_filename = f"{info.filename}.md"
-                info_navs[info.title] = info_filename
-                output_path = Path(output) / info_filename
+                output_path = Path(docs) / info_filename
                 if output_path.is_file():
                     continue
                 output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -400,26 +418,52 @@ def app(
             mkdocs_obj = dict()
 
         assert isinstance(mkdocs_obj, dict)
-        # mkdocs_nav = mkdocs_obj.get("nav", list())
-        # mkdocs_nav.extend(info_navs)
-        #
-        # mkdocs_obj["nav"] = mkdocs_nav
-        # with mkdocs_yml_path.open("wt", encoding="utf-8") as f:
-        #     yaml.dump(mkdocs_obj, f, default_flow_style=False, allow_unicode=True)
+        site_name = mkdocs_obj.get("site_name")
+        if site_name:
+            logger.info(f"Site name: '{site_name}'")
 
 
 def main(cmdline: Optional[List[str]] = None) -> int:
     args = get_default_arguments(cmdline)
+
+    hostname = args.hostname
+    username = args.username
+    password = args.password
+    cache = args.cache
+    docs = args.docs
+    mediawiki_path = args.mediawiki_path
+    mkdocs_yml = args.mkdocs_yml
+    settings_page = args.settings_page
+    skip_download = args.skip_download
+
+    if not hostname:
+        raise ValueError("The 'hostname' argument is required")
+    if not cache:
+        raise ValueError("The 'cache' argument is required")
+    if not docs:
+        raise ValueError("The 'docs' argument is required")
+
+    assert isinstance(hostname, str)
+    assert isinstance(username, (type(None), str))
+    assert isinstance(password, (type(None), str))
+    assert isinstance(cache, str)
+    assert isinstance(docs, str)
+    assert isinstance(mediawiki_path, str)
+    assert isinstance(mkdocs_yml, str)
+    assert isinstance(settings_page, str)
+    assert isinstance(skip_download, bool)
+
     try:
-        app(
-            hostname=args.hostname,
-            username=args.username,
-            password=args.password,
-            output=args.output,
-            cache=args.cache,
-            mkdocs_yml=args.mkdocs_yml,
-            settings_page=args.settings_page,
-            skip_download=args.skip_download,
+        run_app(
+            hostname=hostname,
+            username=username,
+            password=password,
+            cache=cache,
+            docs=docs,
+            mediawiki_path=mediawiki_path,
+            mkdocs_yml=mkdocs_yml,
+            settings_page=settings_page,
+            skip_download=skip_download,
         )
     except BaseException as e:
         print(e, file=stderr)

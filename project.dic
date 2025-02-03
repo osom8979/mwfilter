@@ -16,6 +16,7 @@ levelname
 meipass
 mwfilter
 nocov
+pagename
 pythonpath
 siteinfo
 vimspector
