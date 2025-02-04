@@ -14,7 +14,7 @@ from mwfilter.mw.cache_dirs import pages_cache_dirpath
 from mwfilter.mw.page_meta import PageMeta
 
 
-class PageApp:
+class DownApp:
     def __init__(self, args: Namespace):
         assert isinstance(args.hostname, str)
         assert isinstance(args.username, (type(None), str))

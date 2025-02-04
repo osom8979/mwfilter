@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from copy import copy
-from os.path import abspath, expanduser, expandvars
 from pathlib import Path
 from sys import exit as sys_exit
 from sys import stderr
@@ -18,10 +17,7 @@ from mwfilter.logging.logging import (
     set_root_level,
     silent_unnecessary_loggers,
 )
-
-
-def _expend_abspath(path: str) -> str:
-    return abspath(expanduser(expandvars(path)))
+from mwfilter.paths.expand_abspath import expand_abspath
 
 
 def main(cmdline: Optional[List[str]] = None) -> int:
@@ -33,20 +29,18 @@ def main(cmdline: Optional[List[str]] = None) -> int:
 
     assert args.cmd in CMDS
     assert isinstance(args.hostname, str)
-    assert isinstance(args.settings_page, str)
-    assert isinstance(args.mkdocs_yml, str)
     assert isinstance(args.cache_dir, str)
     assert isinstance(args.colored_logging, bool)
     assert isinstance(args.default_logging, bool)
     assert isinstance(args.simple_logging, bool)
     assert isinstance(args.severity, str)
+    assert isinstance(args.overwrite, bool)
     assert isinstance(args.skip_errors, bool)
     assert isinstance(args.debug, bool)
     assert isinstance(args.verbose, int)
     assert isinstance(args.D, bool)
 
-    args.mkdocs_yml = _expend_abspath(args.mkdocs_yml)
-    args.cache_dir = _expend_abspath(args.cache_dir)
+    args.cache_dir = expand_abspath(args.cache_dir)
 
     if args.D:
         args.colored_logging = True
@@ -56,7 +50,6 @@ def main(cmdline: Optional[List[str]] = None) -> int:
         args.verbose += 1
 
     cmd = args.cmd
-    mkdocs_yml = args.mkdocs_yml
     cache_dir = args.cache_dir
     colored_logging = args.colored_logging
     default_logging = args.default_logging
@@ -90,9 +83,6 @@ def main(cmdline: Optional[List[str]] = None) -> int:
         if not cache_path.is_dir():
             print(f"Could not find cache directory: '{cache_dir}'", file=stderr)
             return 1
-
-    if not Path(mkdocs_yml).is_file():
-        logger.warning(f"Not found mkdocs config file: '{mkdocs_yml}'")
 
     if 1 <= verbose:
         ns = copy(args)

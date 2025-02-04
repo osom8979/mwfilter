@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
 import json
-import pickle
 import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import List, Sequence
+from typing import Sequence
 
 from pypandoc import convert_file
 from type_serialize import deserialize
@@ -69,14 +68,3 @@ def find_convert_info(infos: Sequence[ConvertInfo], page_name: str) -> ConvertIn
         if info.name == page_name:
             return info
     raise IndexError("Not found settings page")
-
-
-def dump_convert_infos(path: Path, infos: List[ConvertInfo]) -> None:
-    path.write_bytes(pickle.dumps(infos))
-
-
-def load_convert_infos(path: Path) -> List[ConvertInfo]:
-    result = pickle.loads(path.read_bytes())
-    assert isinstance(result, list)
-    assert all(isinstance(c, ConvertInfo) for c in result)
-    return result

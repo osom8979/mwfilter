@@ -16,9 +16,9 @@ Apply general debugging options:
   {PROG} -D ...
 """
 
-CMD_PAGE: Final[str] = "page"
-CMD_PAGE_HELP: Final[str] = "Download MediaWiki pages"
-CMD_PAGE_EPILOG = """
+CMD_DOWN: Final[str] = "down"
+CMD_DOWN_HELP: Final[str] = "Download MediaWiki pages"
+CMD_DOWN_EPILOG = """
 List of namespace numbers:
   -2: Media
   -1: Special
@@ -40,16 +40,13 @@ List of namespace numbers:
   15: Category talk
 """
 
-CMD_PICKLE: Final[str] = "pickle"
-CMD_PICKLE_HELP: Final[str] = "Pickle the downloaded MediaWiki files"
+CMD_BUILD: Final[str] = "build"
+CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
 
-CMD_CONVERT: Final[str] = "convert"
-CMD_CONVERT_HELP: Final[str] = "Convert the pickled MediaWiki files"
+CMD_CLEAN: Final[str] = "clean"
+CMD_CLEAN_HELP: Final[str] = "Clean cached files"
 
-CMD_CLEAR: Final[str] = "clear"
-CMD_CLEAR_HELP: Final[str] = "Clear cached files"
-
-CMDS: Final[Sequence[str]] = (CMD_PAGE, CMD_PICKLE, CMD_CONVERT, CMD_CLEAR)
+CMDS: Final[Sequence[str]] = (CMD_DOWN, CMD_BUILD, CMD_CLEAN)
 
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
 DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
@@ -88,12 +85,12 @@ def add_dotenv_arguments(parser: ArgumentParser) -> None:
     )
 
 
-def add_page_parser(subparsers) -> None:
+def add_down_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
     parser = subparsers.add_parser(
-        name=CMD_PAGE,
-        help=CMD_PAGE_HELP,
-        epilog=CMD_PAGE_EPILOG,
+        name=CMD_DOWN,
+        help=CMD_DOWN_HELP,
+        epilog=CMD_DOWN_EPILOG,
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
@@ -104,7 +101,7 @@ def add_page_parser(subparsers) -> None:
         help=(
             "The API endpoint location on a MediaWiki site depends on the "
             "configurable $wgScriptPath. Must contain a trailing slash ('/'). "
-            f"Defaults to '{DEFAULT_MEDIAWIKI_PATH}'"
+            f"(default: '{DEFAULT_MEDIAWIKI_PATH}')"
         ),
     )
     parser.add_argument(
@@ -123,7 +120,10 @@ def add_page_parser(subparsers) -> None:
         "--namespace",
         type=int,
         default=get_eval("MEDIAWIKI_NAMESPACE", DEFAULT_MEDIAWIKI_NAMESPACE),
-        help="The namespace number of the MediaWiki page to download.",
+        help=(
+            "The namespace number of the MediaWiki page to download. "
+            f"(default: {DEFAULT_MEDIAWIKI_NAMESPACE})"
+        ),
     )
     parser.add_argument(
         "--all",
@@ -139,21 +139,11 @@ def add_page_parser(subparsers) -> None:
     )
 
 
-def add_pickle_parser(subparsers) -> None:
+def add_build_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
     parser = subparsers.add_parser(
-        name=CMD_PICKLE,
-        help=CMD_PICKLE_HELP,
-        formatter_class=RawDescriptionHelpFormatter,
-    )
-    assert isinstance(parser, ArgumentParser)
-
-
-def add_convert_parser(subparsers) -> None:
-    # noinspection SpellCheckingInspection
-    parser = subparsers.add_parser(
-        name=CMD_CONVERT,
-        help=CMD_CONVERT_HELP,
+        name=CMD_BUILD,
+        help=CMD_BUILD_HELP,
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
@@ -173,11 +163,11 @@ def add_convert_parser(subparsers) -> None:
     )
 
 
-def add_clear_parser(subparsers) -> None:
+def add_clean_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
     parser = subparsers.add_parser(
-        name=CMD_CLEAR,
-        help=CMD_CLEAR_HELP,
+        name=CMD_CLEAN,
+        help=CMD_CLEAN_HELP,
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
@@ -281,14 +271,13 @@ def default_argument_parser() -> ArgumentParser:
         "-D",
         action="store_true",
         default=False,
-        help="Same as [''-c', '-d', '-v'] flags",
+        help="Same as ['-c', '-d', '-v'] flags",
     )
 
     subparsers = parser.add_subparsers(dest="cmd")
-    add_page_parser(subparsers)
-    add_pickle_parser(subparsers)
-    add_convert_parser(subparsers)
-    add_clear_parser(subparsers)
+    add_down_parser(subparsers)
+    add_build_parser(subparsers)
+    add_clean_parser(subparsers)
 
     return parser
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import os
-from shutil import rmtree
 from argparse import Namespace
 from pathlib import Path
+from shutil import rmtree
 
 from mwfilter.logging.logging import logger
 

@@ -4,12 +4,7 @@ from pathlib import Path
 from typing import Final
 
 PAGES_DIRNAME: Final[str] = "pages"
-PICKLE_SUFFIX: Final[str] = ".pickle"
 
 
 def pages_cache_dirpath(cache_dir: str, hostname: str) -> Path:
     return Path(cache_dir) / hostname / PAGES_DIRNAME
-
-
-def pickle_cache_filepath(cache_dir: str, hostname: str) -> Path:
-    return Path(cache_dir) / (hostname + PICKLE_SUFFIX)

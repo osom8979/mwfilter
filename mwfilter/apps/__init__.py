@@ -5,21 +5,19 @@ from asyncio.exceptions import CancelledError
 from functools import lru_cache
 from typing import Callable, Dict
 
+from mwfilter.apps.build import build_main
 from mwfilter.apps.clear import clear_main
-from mwfilter.apps.convert import convert_main
-from mwfilter.apps.page import page_main
-from mwfilter.apps.pickle import pickle_main
-from mwfilter.arguments import CMD_CLEAR, CMD_CONVERT, CMD_PAGE, CMD_PICKLE
+from mwfilter.apps.down import down_main
+from mwfilter.arguments import CMD_BUILD, CMD_CLEAN, CMD_DOWN
 from mwfilter.logging.logging import logger
 
 
 @lru_cache
 def cmd_apps() -> Dict[str, Callable[[Namespace], None]]:
     return {
-        CMD_CLEAR: clear_main,
-        CMD_CONVERT: convert_main,
-        CMD_PAGE: page_main,
-        CMD_PICKLE: pickle_main,
+        CMD_CLEAN: clear_main,
+        CMD_DOWN: down_main,
+        CMD_BUILD: build_main,
     }
 
 
