@@ -1,4 +1,5 @@
 PyYAML==6.0.2
+coloredlogs==15.0.1
 mkdocs==1.6.1
 mwclient==0.11.0
 pypandoc_binary==1.15

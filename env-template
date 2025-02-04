@@ -1,8 +1,17 @@
+SETTINGS_PAGE=Mwfilter:Settings
+MKDOCS_YML=mkdocs.yml
+
+# common
+COLORED_LOGGING=True
+DEFAULT_LOGGING=False
+SIMPLE_LOGGING=False
+SEVERITY=debug
+DEBUG=True
+VERBOSE=1
+
+# down
 MEDIAWIKI_HOSTNAME=<mediawiki-url>
+ENDPOINT_PATH=/w/
 MEDIAWIKI_USERNAME=<mediawiki-username>
 MEDIAWIKI_PASSWORD=<mediawiki-password>
-MEDIAWIKI_PATH=/w/
-CACHE_DIR=cache
-DOCS_DIR=docs
-MKDOCS_YML=mkdocs.yml
-SETTINGS_PAGE=Mwfilter:Settings
+MEDIAWIKI_NAMESPACE=<mediawiki-namespace>
