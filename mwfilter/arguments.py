@@ -133,12 +133,6 @@ def add_page_parser(subparsers) -> None:
         help="Selects all pages in the specified namespace.",
     )
     parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        default=False,
-        help="If the file already exists, it will be overwritten.",
-    )
-    parser.add_argument(
         "pages",
         nargs=REMAINDER,
         help="Names of downloaded pages.",
@@ -241,6 +235,12 @@ def default_argument_parser() -> ArgumentParser:
         help=f"Logging severity (default: '{SEVERITY_NAME_INFO}')",
     )
 
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="If the file already exists, it will be overwritten.",
+    )
     parser.add_argument(
         "--skip-errors",
         action="store_true",

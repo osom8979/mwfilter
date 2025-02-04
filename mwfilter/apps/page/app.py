@@ -3,14 +3,14 @@
 import json
 import os
 from argparse import Namespace
-from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 from mwclient import Site
 from mwclient.page import Page
 from type_serialize import serialize
 
 from mwfilter.logging.logging import logger
+from mwfilter.mw.cache_dirs import pages_cache_dirpath
 from mwfilter.mw.page_meta import PageMeta
 
 
@@ -44,8 +44,7 @@ class PageApp:
         self._all = args.all
         self._overwrite = args.overwrite
         self._pages = list(str(page_name) for page_name in args.pages)
-        self._cache_dir = args.cache_dir
-        self._destination_dir = Path(self._cache_dir) / self._hostname / "page"
+        self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._skip_errors = args.skip_errors
 
     @property
@@ -67,18 +66,19 @@ class PageApp:
         meta_json = json.dumps(serialize(meta))
         page_content = page.text()
 
-        prefix = f"Download page ({i}):" if i is not None else "Download page:"
-        logger.info(f"{prefix} '{meta.filename}'")
+        prefix = f"Download page ({i})" if i is not None else "Download page"
+        logger.info(f"{prefix}: {meta.filename}")
 
-        json_path = self._destination_dir / f"{meta.filename}.json"
-        wiki_path = self._destination_dir / f"{meta.filename}.wiki"
+        json_path = self._pages_dir / f"{meta.filename}.json"
+        wiki_path = self._pages_dir / f"{meta.filename}.wiki"
 
         try:
-            if not self._overwrite and not json_path.is_file():
+            if self._overwrite or not json_path.is_file():
                 json_path.parent.mkdir(parents=True, exist_ok=True)
                 json_path.unlink(missing_ok=True)
                 json_path.write_text(meta_json)
-            if not self._overwrite and not wiki_path.is_file():
+
+            if self._overwrite or not wiki_path.is_file():
                 wiki_path.parent.mkdir(parents=True, exist_ok=True)
                 wiki_path.unlink(missing_ok=True)
                 wiki_path.write_text(page_content)
@@ -90,24 +90,33 @@ class PageApp:
             else:
                 raise
 
-    def run(self) -> None:
+    def download_allpages(self) -> None:
         site = self.create_site()
-        if self._all:
-            for i, page in enumerate(site.allpages(namespace=self._namespace)):
-                self.download_page(page, i)
-        else:
-            for i, page_name in enumerate(self._pages):
-                try:
-                    page = site.pages[page_name]
-                except BaseException as e:
-                    if self._skip_errors:
-                        logger.error(e)
-                    else:
-                        raise
+        for i, page in enumerate(site.allpages(namespace=self._namespace), start=1):
+            self.download_page(page, i)
+
+    def download_pages(self, page_names: Sequence[str]) -> None:
+        site = self.create_site()
+        for i, page_name in enumerate(page_names, start=1):
+            try:
+                page = site.pages[page_name]
+            except BaseException as e:
+                if self._skip_errors:
+                    logger.error(e)
                 else:
-                    if isinstance(page, Page):
-                        self.download_page(page, i)
-                    elif self._skip_errors:
-                        logger.error(f"Unexpected page type: {type(page).__name__}")
+                    raise
+            else:
+                if isinstance(page, Page):
+                    self.download_page(page, i)
+                else:
+                    error_message = f"Unexpected page type: {type(page).__name__}"
+                    if self._skip_errors:
+                        logger.error(error_message)
                     else:
-                        raise TypeError(f"Unexpected page type: {type(page).__name__}")
+                        raise TypeError(error_message)
+
+    def run(self) -> None:
+        if self._all:
+            self.download_allpages()
+        else:
+            self.download_pages(self._pages)

@@ -10,6 +10,7 @@ asctime
 datefmt
 denypages
 denypatterns
+dirpath
 dockerignore
 ghcr
 levelname
