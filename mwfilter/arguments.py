@@ -99,14 +99,6 @@ def add_page_parser(subparsers) -> None:
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
-        "--hostname",
-        default=get_eval("MEDIAWIKI_HOSTNAME"),
-        help=(
-            "The hostname of a MediaWiki instance. "
-            "Must *NOT* include a scheme (e.g. 'https://')"
-        ),
-    )
-    parser.add_argument(
         "--endpoint-path",
         default=get_eval("ENDPOINT_PATH", DEFAULT_MEDIAWIKI_PATH),
         help=(
@@ -139,6 +131,12 @@ def add_page_parser(subparsers) -> None:
         action="store_true",
         default=False,
         help="Selects all pages in the specified namespace.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="If the file already exists, it will be overwritten.",
     )
     parser.add_argument(
         "pages",
@@ -188,6 +186,14 @@ def default_argument_parser() -> ArgumentParser:
     add_dotenv_arguments(parser)
 
     parser.add_argument(
+        "--hostname",
+        default=get_eval("MEDIAWIKI_HOSTNAME", str()),
+        help=(
+            "The hostname of a MediaWiki instance. "
+            "Must *NOT* include a scheme (e.g. 'https://')"
+        ),
+    )
+    parser.add_argument(
         "--settings-page",
         default=get_eval("SETTINGS_PAGE", DEFAULT_SETTINGS_PAGE),
         help=(
@@ -235,6 +241,12 @@ def default_argument_parser() -> ArgumentParser:
         help=f"Logging severity (default: '{SEVERITY_NAME_INFO}')",
     )
 
+    parser.add_argument(
+        "--skip-errors",
+        action="store_true",
+        default=get_eval("SKIP_ERRORS", False),
+        help="Do not raise even if an error occurs.",
+    )
     parser.add_argument(
         "--debug",
         "-d",

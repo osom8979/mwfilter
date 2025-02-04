@@ -4,16 +4,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from mwclient import Site
 from mwclient.page import Page
 
-
-def pagename_to_filename(pagename: str) -> str:
-    return pagename.removeprefix("/").replace(" ", "_")
+from mwfilter.mw.namespace import FILE_NAMESPACE, TEMPLATE_NAMESPACE
 
 
 @dataclass
 class PageMeta:
-    filename: str = field(default_factory=str)
     namespace: int = 0
     name: str = field(default_factory=str)
     page_title: str = field(default_factory=str)
@@ -35,7 +33,6 @@ class PageMeta:
     @classmethod
     def from_page(cls, page: Page):
         return cls(
-            filename=pagename_to_filename(page.name),
             namespace=page.namespace,
             name=page.name,
             page_title=page.page_title,
@@ -54,3 +51,15 @@ class PageMeta:
             edit_time=page.edit_time,
             last_rev_time=page.last_rev_time,
         )
+
+    @property
+    def page_name(self) -> str:
+        if self.namespace in (FILE_NAMESPACE, TEMPLATE_NAMESPACE):
+            default_namespace = Site.default_namespaces[self.namespace]
+            return f"{default_namespace}:{self.page_title}"
+        else:
+            return self.name
+
+    @property
+    def filename(self) -> str:
+        return self.page_name.removeprefix("/").replace(" ", "_")

@@ -32,20 +32,21 @@ def main(cmdline: Optional[List[str]] = None) -> int:
         return 1
 
     assert args.cmd in CMDS
-
+    assert isinstance(args.hostname, str)
+    assert isinstance(args.settings_page, str)
     assert isinstance(args.mkdocs_yml, str)
     assert isinstance(args.cache_dir, str)
-    args.mkdocs_yml = _expend_abspath(args.mkdocs_yml)
-    args.cache_dir = _expend_abspath(args.cache_dir)
-
-    assert isinstance(args.settings_page, str)
     assert isinstance(args.colored_logging, bool)
     assert isinstance(args.default_logging, bool)
     assert isinstance(args.simple_logging, bool)
     assert isinstance(args.severity, str)
+    assert isinstance(args.skip_errors, bool)
     assert isinstance(args.debug, bool)
     assert isinstance(args.verbose, int)
     assert isinstance(args.D, bool)
+
+    args.mkdocs_yml = _expend_abspath(args.mkdocs_yml)
+    args.cache_dir = _expend_abspath(args.cache_dir)
 
     if args.D:
         args.colored_logging = True
@@ -75,11 +76,13 @@ def main(cmdline: Optional[List[str]] = None) -> int:
         set_root_level(SEVERITY_NAME_DEBUG)
     else:
         set_root_level(severity)
-        if verbose < 2:
-            silent_unnecessary_loggers()
 
-    if not Path(mkdocs_yml).is_file():
-        logger.warning(f"Not found mkdocs config file: '{mkdocs_yml}'")
+    if not debug or verbose < 2:
+        silent_unnecessary_loggers()
+
+    if not args.hostname:
+        print("The 'hostname' argument is required", file=stderr)
+        return 1
 
     cache_path = Path(cache_dir)
     if not cache_path.is_dir():
@@ -88,7 +91,10 @@ def main(cmdline: Optional[List[str]] = None) -> int:
             print(f"Could not find cache directory: '{cache_dir}'", file=stderr)
             return 1
 
-    if 2 <= verbose:
+    if not Path(mkdocs_yml).is_file():
+        logger.warning(f"Not found mkdocs config file: '{mkdocs_yml}'")
+
+    if 1 <= verbose:
         ns = copy(args)
         if getattr(ns, "password", None):
             setattr(ns, "password", "****")

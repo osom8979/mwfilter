@@ -11,9 +11,6 @@ from logging import (
     WARNING,
     Formatter,
     StreamHandler,
-)
-from logging import config as logging_config
-from logging import (
     getLogger,
 )
 from logging.handlers import TimedRotatingFileHandler
@@ -67,69 +64,6 @@ DEFAULT_STYLE: Final[LoggingStyleLiteral] = "%"
 SIMPLE_FORMAT: Final[str] = "{levelname[0]} {asctime} {name} {message}"
 SIMPLE_DATEFMT: Final[str] = "%Y%m%d %H%M%S"
 SIMPLE_STYLE: Final[LoggingStyleLiteral] = "{"
-
-COLORED_FORMATTER_CLASS_PATH = (
-    f"{DEFAULT_LOGGER_NAME}.logging.formatters.colored.ColoredFormatter"
-)
-
-DEFAULT_LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": DEFAULT_FORMAT,
-            "datefmt": DEFAULT_DATEFMT,
-            "style": DEFAULT_STYLE,
-        },
-        "simple": {
-            "format": SIMPLE_FORMAT,
-            "datefmt": SIMPLE_DATEFMT,
-            "style": SIMPLE_STYLE,
-        },
-        "color": {
-            "class": COLORED_FORMATTER_CLASS_PATH,
-            "format": DEFAULT_FORMAT,
-            "datefmt": DEFAULT_DATEFMT,
-            "style": DEFAULT_STYLE,
-        },
-    },
-    "handlers": {
-        "console_default": {
-            "class": "logging.StreamHandler",
-            "level": "DEBUG",
-            "formatter": "default",
-            "stream": "ext://sys.stdout",
-        },
-        "console_simple": {
-            "class": "logging.StreamHandler",
-            "level": "DEBUG",
-            "formatter": "simple",
-            "stream": "ext://sys.stdout",
-        },
-        "console_color": {
-            "class": "logging.StreamHandler",
-            "level": "DEBUG",
-            "formatter": "color",
-            "stream": "ext://sys.stdout",
-        },
-        "file_default": {
-            "class": "logging.FileHandler",
-            "level": "DEBUG",
-            "formatter": "default",
-            "filename": "recc.log",
-            "mode": "a",
-            "encoding": "utf-8",
-            "delay": False,
-        },
-    },
-    "loggers": {
-        # root logger
-        "": {
-            "handlers": ["console_color"],
-            "level": "DEBUG",
-        },
-    },
-}
 
 
 def convert_level_number(level: Optional[Union[str, int]] = None) -> int:
@@ -202,10 +136,6 @@ def set_root_level(level: Union[str, int]) -> None:
     getLogger().setLevel(convert_level_number(level))
 
 
-def set_default_logging_config() -> None:
-    logging_config.dictConfig(DEFAULT_LOGGING_CONFIG)
-
-
 def add_default_rotate_file_logging(
     prefix: str,
     when: Union[str, TimedRotatingWhenLiteral] = DEFAULT_TIMED_ROTATING_WHEN,
@@ -271,7 +201,7 @@ def add_simple_logging(level=DEBUG) -> None:
 def silent_unnecessary_loggers() -> None:
     import pypandoc
 
-    pypandoc.logger.setLevel(NOTSET)
+    pypandoc.logger.setLevel(CRITICAL)
 
-    getLogger("pandoc").setLevel(NOTSET)
-    getLogger("urllib3").setLevel(NOTSET)
+    getLogger("pandoc").setLevel(CRITICAL)
+    getLogger("urllib3").setLevel(CRITICAL)
