@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import os
-import pickle
 from argparse import Namespace
 from glob import glob
 from typing import List
 
 from mwfilter.logging.logging import logger
 from mwfilter.mw.cache_dirs import pages_cache_dirpath, pickle_cache_filepath
-from mwfilter.mw.convert_info import ConvertInfo
+from mwfilter.mw.convert_info import ConvertInfo, dump_convert_infos
 
 
 class PickleApp:
@@ -28,10 +27,13 @@ class PickleApp:
 
     def create_convert_infos(self) -> List[ConvertInfo]:
         json_filenames = glob("*.json", root_dir=self._pages_dir, recursive=True)
+        if not json_filenames:
+            raise FileNotFoundError(f"No JSON files found in '{self._pages_dir}'")
+
         json_filenames.sort()
         count = len(json_filenames)
-
         result = list()
+
         for i, json_filename in enumerate(json_filenames, start=1):
             filename = os.path.splitext(json_filename)[0]
             prefix = f"Convert info ({i}/{count})" if i is not None else "Convert info"
@@ -57,4 +59,4 @@ class PickleApp:
 
         infos = self.create_convert_infos()
         self._pickle_path.unlink(missing_ok=True)
-        self._pickle_path.write_bytes(pickle.dumps(infos))
+        dump_convert_infos(self._pickle_path, infos)
