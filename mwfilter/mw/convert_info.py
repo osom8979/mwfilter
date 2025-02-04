@@ -5,6 +5,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
+from typing import Sequence
 
 from pypandoc import convert_file
 from type_serialize import deserialize
@@ -29,7 +30,7 @@ class ConvertInfo:
         )
 
     @property
-    def title(self):
+    def name(self):
         return self.meta.name
 
     @property
@@ -41,14 +42,14 @@ class ConvertInfo:
         return self.meta.touched.date().isoformat()
 
     @property
-    def url_title(self):
-        return urllib.parse.quote(self.title)
+    def url_name(self):
+        return urllib.parse.quote(self.name)
 
     @property
     def yaml_frontmatter(self):
         buffer = StringIO()
         buffer.write("---\n")
-        buffer.write(f"title: {self.title}\n")
+        buffer.write(f"title: {self.name}\n")
         buffer.write(f"date: {self.date}\n")
         buffer.write("---\n")
         buffer.write("\n")
@@ -60,3 +61,10 @@ class ConvertInfo:
             to="markdown",
             format="mediawiki",
         )
+
+
+def find_convert_info(infos: Sequence[ConvertInfo], page_name: str) -> ConvertInfo:
+    for info in infos:
+        if info.name == page_name:
+            return info
+    raise IndexError("Not found settings page")
