@@ -158,6 +158,20 @@ def add_convert_parser(subparsers) -> None:
     )
     assert isinstance(parser, ArgumentParser)
 
+    parser.add_argument(
+        "--settings-page",
+        default=get_eval("SETTINGS_PAGE", DEFAULT_SETTINGS_PAGE),
+        help=(
+            "The name of the MediaWiki page containing project settings information. "
+            f"(default: '{DEFAULT_SETTINGS_PAGE}')"
+        ),
+    )
+    parser.add_argument(
+        "--mkdocs-yml",
+        default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
+        help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
+    )
+
 
 def add_clear_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
@@ -167,6 +181,14 @@ def add_clear_parser(subparsers) -> None:
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        default=False,
+        help="Remove all cache files and directories.",
+    )
 
 
 def default_argument_parser() -> ArgumentParser:
@@ -186,19 +208,6 @@ def default_argument_parser() -> ArgumentParser:
             "The hostname of a MediaWiki instance. "
             "Must *NOT* include a scheme (e.g. 'https://')"
         ),
-    )
-    parser.add_argument(
-        "--settings-page",
-        default=get_eval("SETTINGS_PAGE", DEFAULT_SETTINGS_PAGE),
-        help=(
-            "The name of the MediaWiki page containing project settings information. "
-            f"(default: '{DEFAULT_SETTINGS_PAGE}')"
-        ),
-    )
-    parser.add_argument(
-        "--mkdocs-yml",
-        default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
-        help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
     )
     parser.add_argument(
         "--cache-dir",
