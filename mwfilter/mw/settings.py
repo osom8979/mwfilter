@@ -73,9 +73,9 @@ class Settings:
                 option_cursor = None
 
         return cls(
-            allow_pages=allow_pages,
+            allow_pages=[x.strip().replace(" ", "_") for x in allow_pages],
             allow_patterns=[re_compile(p) for p in allow_patterns],
-            deny_pages=deny_pages,
+            deny_pages=[x.strip().replace(" ", "_") for x in deny_pages],
             deny_patterns=[re_compile(p) for p in deny_patterns],
         )
 

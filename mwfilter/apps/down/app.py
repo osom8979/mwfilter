@@ -55,20 +55,17 @@ class DownApp:
             return None
 
     def create_site(self) -> Site:
-        # return Site(host=self._hostname, path=self._endpoint_path, httpauth=self.auth)
         site = Site(host=self._hostname, path=self._endpoint_path)
         if auth := self.auth:
             site.login(*auth)
         return site
 
-    def download_page(self, page: Page, i: Optional[int] = None) -> None:
+    def download_page(self, page: Page, i: int) -> None:
         meta = PageMeta.from_page(page)
         meta_json = json.dumps(serialize(meta))
         page_content = page.text()
 
-        prefix = f"Download page ({i})" if i is not None else "Download page"
-        logger.info(f"{prefix}: {meta.filename}")
-
+        logger.info(f"Download ({i}): {meta.filename}")
         json_path = self._pages_dir / f"{meta.filename}.json"
         wiki_path = self._pages_dir / f"{meta.filename}.wiki"
 

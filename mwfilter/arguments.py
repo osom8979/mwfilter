@@ -14,6 +14,9 @@ DESCRIPTION: Final[str] = "MediaWiki Filter"
 EPILOG = f"""
 Apply general debugging options:
   {PROG} -D ...
+
+Download all template pages with overwrite:
+  {PROG} -D -O down --namespace 10 -a
 """
 
 CMD_DOWN: Final[str] = "down"
@@ -236,6 +239,7 @@ def default_argument_parser() -> ArgumentParser:
 
     parser.add_argument(
         "--overwrite",
+        "-O",
         action="store_true",
         default=False,
         help="If the file already exists, it will be overwritten.",

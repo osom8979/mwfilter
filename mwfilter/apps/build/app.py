@@ -3,7 +3,7 @@
 import os
 from argparse import Namespace
 from glob import glob
-from typing import List, Sequence
+from typing import List
 from pathlib import Path
 
 import yaml
@@ -49,8 +49,7 @@ class BuildApp:
 
         for i, json_filename in enumerate(json_filenames, start=1):
             filename = os.path.splitext(json_filename)[0]
-            prefix = f"Convert info ({i}/{count})" if i is not None else "Convert info"
-            logger.info(f"{prefix}: {filename}")
+            logger.debug(f"Read ({i}/{count}): {filename}")
 
             try:
                 json_path = self._pages_dir / json_filename
@@ -64,7 +63,15 @@ class BuildApp:
                     raise
         return result
 
-    def convert_info(self, info: ConvertInfo, docs_dirpath: Path) -> None:
+    def convert_info(
+        self,
+        info: ConvertInfo,
+        docs_dirpath: Path,
+        i: int,
+        count: int,
+    ) -> None:
+        logger.info(f"Convert ({i}/{count}): {info.filename}")
+
         markdown_path = docs_dirpath / f"{info.filename}.md"
         if markdown_path.is_file() and not self._overwrite:
             return
@@ -72,10 +79,6 @@ class BuildApp:
         markdown_path.parent.mkdir(parents=True, exist_ok=True)
         markdown_path.unlink(missing_ok=True)
         markdown_path.write_text(info.as_markdown())
-
-    def convert_infos(self, infos: Sequence[ConvertInfo], docs_dirpath: Path) -> None:
-        for info in infos:
-            self.convert_info(info, docs_dirpath)
 
     def run(self) -> None:
         infos = self.create_convert_infos()
@@ -86,13 +89,15 @@ class BuildApp:
         filtered_infos = list()
         for info in infos:
             if not settings.filter_with_title(info.filename):
-                logger.debug(f"Filtered page: '{info.filename}'")
+                logger.warning(f"Filtered page: '{info.filename}'")
                 continue
             filtered_infos.append(info)
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:
             mkdocs = yaml.safe_load(f)
-        assert isinstance(mkdocs, dict)
+
+        if not isinstance(mkdocs, dict):
+            raise TypeError(f"Unexpected mkdocs types: {type(mkdocs).__name__}")
 
         site_name = mkdocs.get("site_name")
         logger.info(f"Site name: '{site_name}'")
@@ -101,4 +106,6 @@ class BuildApp:
         logger.info(f"Docs dir: '{docs_dir}'")
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
-        self.convert_infos(infos, docs_dirpath)
+        count = len(infos)
+        for i, info in enumerate(infos, start=1):
+            self.convert_info(info, docs_dirpath, i, count)
