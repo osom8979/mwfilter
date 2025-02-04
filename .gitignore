@@ -133,7 +133,7 @@ MANIFEST
 
 ###############
 ### Project ###
-.env*
+.env.local
 .venv/
 cache/
 docs/

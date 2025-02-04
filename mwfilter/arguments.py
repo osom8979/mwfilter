@@ -54,6 +54,7 @@ CMDS: Final[Sequence[str]] = (CMD_PAGE, CMD_PICKLE, CMD_CONVERT, CMD_CLEAR)
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
 DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
 DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
+DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
 DEFAULT_SETTINGS_PAGE: Final[str] = "Mwfilter:Settings"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
@@ -92,6 +93,7 @@ def add_page_parser(subparsers) -> None:
     parser = subparsers.add_parser(
         name=CMD_PAGE,
         help=CMD_PAGE_HELP,
+        epilog=CMD_PAGE_EPILOG,
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
@@ -130,6 +132,13 @@ def add_page_parser(subparsers) -> None:
         type=int,
         default=get_eval("MEDIAWIKI_NAMESPACE", DEFAULT_MEDIAWIKI_NAMESPACE),
         help="The namespace number of the MediaWiki page to download.",
+    )
+    parser.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        default=False,
+        help="Selects all pages in the specified namespace.",
     )
     parser.add_argument(
         "pages",

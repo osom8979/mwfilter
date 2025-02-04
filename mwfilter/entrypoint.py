@@ -43,7 +43,7 @@ def main(cmdline: Optional[List[str]] = None) -> int:
         args.default_logging = False
         args.simple_logging = False
         args.debug = True
-        args.verbose = 1
+        args.verbose += 1
 
     cmd = args.cmd
     colored_logging = args.colored_logging
