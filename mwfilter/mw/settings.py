@@ -2,8 +2,7 @@
 
 import json
 from dataclasses import dataclass, field
-from re import Pattern
-from re import compile as re_compile
+from re import match
 from typing import List, Optional
 
 from pypandoc import convert_text
@@ -12,12 +11,12 @@ from pypandoc import convert_text
 @dataclass
 class Settings:
     allow_pages: List[str] = field(default_factory=list)
-    allow_patterns: List[Pattern[str]] = field(default_factory=list)
+    allow_patterns: List[str] = field(default_factory=list)
     deny_pages: List[str] = field(default_factory=list)
-    deny_patterns: List[Pattern[str]] = field(default_factory=list)
+    deny_patterns: List[str] = field(default_factory=list)
 
     @classmethod
-    def from_convert_info(cls, mediawiki_content: str):
+    def from_mediawiki_content(cls, mediawiki_content: str):
         info_json = convert_text(mediawiki_content, to="json", format="mediawiki")
         info_obj = json.loads(info_json)
         assert isinstance(info_obj, dict)
@@ -74,9 +73,9 @@ class Settings:
 
         return cls(
             allow_pages=[x.strip().replace(" ", "_") for x in allow_pages],
-            allow_patterns=[re_compile(p) for p in allow_patterns],
+            allow_patterns=[x.strip() for x in allow_patterns],
             deny_pages=[x.strip().replace(" ", "_") for x in deny_pages],
-            deny_patterns=[re_compile(p) for p in deny_patterns],
+            deny_patterns=[x.strip() for x in deny_patterns],
         )
 
     def filter_with_title(self, title: str) -> bool:
@@ -85,7 +84,7 @@ class Settings:
 
         if self.allow_patterns:
             for pattern in self.deny_patterns:
-                if pattern.match(title) is not None:
+                if match(pattern, title) is not None:
                     return True
 
         if self.deny_pages and title in self.deny_pages:
@@ -93,7 +92,7 @@ class Settings:
 
         if self.deny_patterns:
             for pattern in self.deny_patterns:
-                if pattern.match(title) is not None:
+                if match(pattern, title) is not None:
                     return False
 
         return True

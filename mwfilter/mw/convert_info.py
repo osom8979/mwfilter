@@ -38,6 +38,18 @@ class ConvertInfo:
         return self.meta.filename
 
     @property
+    def json_filename(self) -> str:
+        return self.json_filename
+
+    @property
+    def wiki_filename(self) -> str:
+        return self.wiki_filename
+
+    @property
+    def markdown_filename(self) -> str:
+        return self.markdown_filename
+
+    @property
     def date(self):
         return self.meta.touched.date().isoformat()
 

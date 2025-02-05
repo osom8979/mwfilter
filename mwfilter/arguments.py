@@ -15,8 +15,14 @@ EPILOG = f"""
 Apply general debugging options:
   {PROG} -D ...
 
-Download all template pages with overwrite:
-  {PROG} -D -O down --namespace 10 -a
+Download all main pages:
+  {PROG} -D down -a
+
+Download all template pages:
+  {PROG} -D down -N 10 -a
+
+Build all wiki files:
+  {PROG} -D build
 """
 
 CMD_DOWN: Final[str] = "down"
@@ -25,16 +31,16 @@ CMD_DOWN_EPILOG = """
 List of namespace numbers:
   -2: Media
   -1: Special
-  0: (Main)
-  1: Talk
-  2: User
-  3: User talk
-  4: Project
-  5: Project talk
-  6: File
-  7: File talk
-  8: MediaWiki
-  9: MediaWiki talk
+   0: (Main)
+   1: Talk
+   2: User
+   3: User talk
+   4: Project
+   5: Project talk
+   6: File
+   7: File talk
+   8: MediaWiki
+   9: MediaWiki talk
   10: Template
   11: Template talk
   12: Help
@@ -56,7 +62,7 @@ DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
 DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
-DEFAULT_SETTINGS_PAGE: Final[str] = "Mwfilter:Settings"
+DEFAULT_SETTINGS_PAGE_NAME: Final[str] = "Mwfilter:Settings"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
 
 
@@ -121,6 +127,7 @@ def add_down_parser(subparsers) -> None:
     )
     parser.add_argument(
         "--namespace",
+        "-N",
         type=int,
         default=get_eval("MEDIAWIKI_NAMESPACE", DEFAULT_MEDIAWIKI_NAMESPACE),
         help=(
@@ -129,8 +136,30 @@ def add_down_parser(subparsers) -> None:
         ),
     )
     parser.add_argument(
+        "--no-expand-templates",
+        action="store_true",
+        default=get_eval("NO_EXPAND_TEMPLATES", False),
+        help="Expand templates.",
+    )
+    parser.add_argument(
+        "--export-settings",
+        "-E",
+        action="store_true",
+        default=False,
+        help="Export settings file.",
+    )
+    parser.add_argument(
+        "--settings-page-name",
+        default=get_eval("SETTINGS_PAGE_NAME", DEFAULT_SETTINGS_PAGE_NAME),
+        help=(
+            "The name of the MediaWiki page containing project settings information. "
+            f"(default: '{DEFAULT_SETTINGS_PAGE_NAME}')"
+        ),
+    )
+    parser.add_argument(
         "--all",
         "-a",
+        "-A",
         action="store_true",
         default=False,
         help="Selects all pages in the specified namespace.",
@@ -152,14 +181,6 @@ def add_build_parser(subparsers) -> None:
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
-        "--settings-page",
-        default=get_eval("SETTINGS_PAGE", DEFAULT_SETTINGS_PAGE),
-        help=(
-            "The name of the MediaWiki page containing project settings information. "
-            f"(default: '{DEFAULT_SETTINGS_PAGE}')"
-        ),
-    )
-    parser.add_argument(
         "--mkdocs-yml",
         default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
         help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
@@ -178,6 +199,7 @@ def add_clean_parser(subparsers) -> None:
     parser.add_argument(
         "--all",
         "-a",
+        "-A",
         action="store_true",
         default=False,
         help="Remove all cache files and directories.",
@@ -196,6 +218,7 @@ def default_argument_parser() -> ArgumentParser:
 
     parser.add_argument(
         "--hostname",
+        "-H",
         default=get_eval("MEDIAWIKI_HOSTNAME", str()),
         help=(
             "The hostname of a MediaWiki instance. "
@@ -204,8 +227,29 @@ def default_argument_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--cache-dir",
+        "-C",
         default=get_eval("CACHE_DIR", cache_dir()),
-        help=f"Cache directory path. (default: '{cache_dir()}')",
+        help=f"Root cache directory path. (default: '{cache_dir()}')",
+    )
+    parser.add_argument(
+        "--no-create-cache-dir",
+        action="store_true",
+        default=get_eval("NO_CREATE_CACHE_DIR", False),
+        help="Do not automatically create the cache directory if it does not exist.",
+    )
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Automatic yes to prompts.",
+    )
+    parser.add_argument(
+        "--ignore-errors",
+        "-I",
+        action="store_true",
+        default=get_eval("IGNORE_ERRORS", False),
+        help="Do not raise even if an error occurs.",
     )
 
     logging_group = parser.add_mutually_exclusive_group()
@@ -237,19 +281,6 @@ def default_argument_parser() -> ArgumentParser:
         help=f"Logging severity (default: '{SEVERITY_NAME_INFO}')",
     )
 
-    parser.add_argument(
-        "--overwrite",
-        "-O",
-        action="store_true",
-        default=False,
-        help="If the file already exists, it will be overwritten.",
-    )
-    parser.add_argument(
-        "--skip-errors",
-        action="store_true",
-        default=get_eval("SKIP_ERRORS", False),
-        help="Do not raise even if an error occurs.",
-    )
     parser.add_argument(
         "--debug",
         "-d",

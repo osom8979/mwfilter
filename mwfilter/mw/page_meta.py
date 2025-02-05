@@ -63,3 +63,15 @@ class PageMeta:
     @property
     def filename(self) -> str:
         return self.page_name.removeprefix("/").replace(" ", "_")
+
+    @property
+    def json_filename(self) -> str:
+        return self.filename + ".json"
+
+    @property
+    def wiki_filename(self) -> str:
+        return self.filename + ".wiki"
+
+    @property
+    def markdown_filename(self) -> str:
+        return self.filename + ".md"
