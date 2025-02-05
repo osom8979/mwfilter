@@ -39,15 +39,15 @@ class ConvertInfo:
 
     @property
     def json_filename(self) -> str:
-        return self.json_filename
+        return self.meta.json_filename
 
     @property
     def wiki_filename(self) -> str:
-        return self.wiki_filename
+        return self.meta.wiki_filename
 
     @property
     def markdown_filename(self) -> str:
-        return self.markdown_filename
+        return self.meta.markdown_filename
 
     @property
     def date(self):

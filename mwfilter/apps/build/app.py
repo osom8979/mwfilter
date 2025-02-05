@@ -7,9 +7,10 @@ from typing import List
 from pathlib import Path
 
 import yaml
+from type_serialize import deserialize
 
 from mwfilter.logging.logging import logger
-from mwfilter.mw.cache_dirs import pages_cache_dirpath
+from mwfilter.mw.cache_dirs import pages_cache_dirpath, settings_filepath
 from mwfilter.mw.convert_info import ConvertInfo
 from mwfilter.mw.settings import Settings
 from mwfilter.paths.expand_abspath import expand_abspath
@@ -34,7 +35,7 @@ class BuildApp:
         self._yes = args.yes
         self._ignore_errors = args.ignore_errors
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
-        self._settings_page = args.settings_page
+        self._settings_yml = settings_filepath(args.cache_dir, self._hostname)
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
 
     def create_convert_infos(self) -> List[ConvertInfo]:
@@ -67,8 +68,15 @@ class BuildApp:
             mkdocs_yml = str(self._mkdocs_yml)
             raise FileNotFoundError(f"Not found mkdocs config file: '{mkdocs_yml}'")
 
+        if not self._settings_yml.is_file():
+            settings_yml = str(self._settings_yml)
+            raise FileNotFoundError(f"Not found settings file: '{settings_yml}'")
+
+        with self._settings_yml.open("rt", encoding="utf-8") as f:
+            settings = deserialize(yaml.safe_load(f), Settings)
+            assert isinstance(settings, Settings)
+
         infos = self.create_convert_infos()
-        settings = Settings()
 
         filtered_infos = list()
         for info in infos:

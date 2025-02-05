@@ -144,4 +144,4 @@ class DownApp:
             if ask_overwrite(self._settings_path, force_yes=self._yes):
                 self._settings_path.parent.mkdir(parents=True, exist_ok=True)
                 with self._settings_path.open("wt") as f:
-                    yaml.dump(settings, f)
+                    yaml.dump(serialize(settings), f)
