@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import dataclass, field
+from io import StringIO
 from re import match
 from typing import List, Optional
 
@@ -60,22 +61,27 @@ class Settings:
                         ic = item[0]["c"]
                         assert isinstance(it, str)
                         assert isinstance(ic, list)
-                        ic0 = ic[0]
-                        assert isinstance(ic0, dict)
-                        ic0t = ic0["t"]
-                        ic0c = ic0["c"]
-                        assert isinstance(ic0t, str)
-                        assert isinstance(ic0c, str)
-                        if ic0t == "Str":
-                            option_cursor.append(ic0c)
+                        if it == "Plain":
+                            option_item_buffer = StringIO()
+                            for ic_item in ic:
+                                assert isinstance(ic_item, dict)
+                                ic_t = ic_item["t"]
+                                assert isinstance(ic_t, str)
+                                if ic_t == "Str":
+                                    ic_c = ic_item["c"]
+                                    assert isinstance(ic_c, str)
+                                    option_item_buffer.write(ic_c)
+                                elif ic_t == "Space":
+                                    option_item_buffer.write("_")
+                            option_cursor.append(option_item_buffer.getvalue())
             else:
                 option_cursor = None
 
         return cls(
-            allow_pages=[x.strip().replace(" ", "_") for x in allow_pages],
-            allow_patterns=[x.strip() for x in allow_patterns],
-            deny_pages=[x.strip().replace(" ", "_") for x in deny_pages],
-            deny_patterns=[x.strip() for x in deny_patterns],
+            allow_pages=allow_pages,
+            allow_patterns=allow_patterns,
+            deny_pages=deny_pages,
+            deny_patterns=deny_patterns,
         )
 
     def filter_with_title(self, title: str) -> bool:

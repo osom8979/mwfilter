@@ -2,10 +2,10 @@
 
 import json
 import os
-import yaml
 from argparse import Namespace
 from typing import Optional, Sequence, Tuple
 
+import yaml
 from mwclient import Site
 from mwclient.page import Page
 from type_serialize import serialize
@@ -13,8 +13,8 @@ from type_serialize import serialize
 from mwfilter.logging.logging import logger
 from mwfilter.mw.cache_dirs import pages_cache_dirpath, settings_filepath
 from mwfilter.mw.page_meta import PageMeta
-from mwfilter.system.ask import ask_overwrite
 from mwfilter.mw.settings import Settings
+from mwfilter.system.ask import ask_overwrite
 
 
 class DownApp:

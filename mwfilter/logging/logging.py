@@ -199,8 +199,10 @@ def add_simple_logging(level=DEBUG) -> None:
 
 
 def silent_unnecessary_loggers() -> None:
+    import mwclient
     import pypandoc
 
+    mwclient.client.log.setLevel(CRITICAL)
     pypandoc.logger.setLevel(CRITICAL)
 
     getLogger("pandoc").setLevel(CRITICAL)
