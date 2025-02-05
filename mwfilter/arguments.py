@@ -16,13 +16,16 @@ Apply general debugging options:
   {PROG} -D ...
 
 Download all main pages:
-  {PROG} -D down -a
+  {PROG} -y -D down -a
 
 Download all template pages:
-  {PROG} -D down -N 10 -a
+  {PROG} -y -D down -N 10 -a
+
+Download settings pages:
+  {PROG} -y -D down -E
 
 Build all wiki files:
-  {PROG} -D build
+  {PROG} -y -D build
 """
 
 CMD_DOWN: Final[str] = "down"

@@ -10,6 +10,7 @@ from typing import Sequence
 from pypandoc import convert_file
 from type_serialize import deserialize
 
+from mwfilter.assets import get_markdown_filter_lua
 from mwfilter.mw.page_meta import PageMeta
 
 
@@ -72,6 +73,7 @@ class ConvertInfo:
             self.text_path,
             to="markdown",
             format="mediawiki",
+            filters=[get_markdown_filter_lua()],
         )
 
 
