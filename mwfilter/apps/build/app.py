@@ -2,7 +2,6 @@
 
 import os
 from argparse import Namespace
-from glob import glob
 from typing import List
 from pathlib import Path
 
@@ -38,8 +37,17 @@ class BuildApp:
         self._settings_yml = settings_filepath(args.cache_dir, self._hostname)
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
 
+    @staticmethod
+    def find_json_files_recursively(root_dir: Path) -> List[Path]:
+        result = list()
+        for dirpath, dirnames, filenames in root_dir.walk():
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    result.append(dirpath / filename)
+        return result
+
     def create_convert_infos(self) -> List[ConvertInfo]:
-        json_filenames = glob("*.json", root_dir=self._pages_dir, recursive=True)
+        json_filenames = self.find_json_files_recursively(self._pages_dir)
         if not json_filenames:
             raise FileNotFoundError(f"No JSON files found in '{self._pages_dir}'")
 
@@ -47,13 +55,12 @@ class BuildApp:
         count = len(json_filenames)
         result = list()
 
-        for i, json_filename in enumerate(json_filenames, start=1):
-            filename = os.path.splitext(json_filename)[0]
+        for i, json_path in enumerate(json_filenames, start=1):
+            filename = json_path.name.removesuffix(".json")
             logger.debug(f"Read ({i}/{count}): {filename}")
 
             try:
-                json_path = self._pages_dir / json_filename
-                wiki_path = self._pages_dir / f"{filename}.wiki"
+                wiki_path = json_path.parent / f"{filename}.wiki"
                 info = ConvertInfo.from_paths(json_path, wiki_path)
                 result.append(info)
             except BaseException as e:
@@ -78,12 +85,19 @@ class BuildApp:
 
         infos = self.create_convert_infos()
 
-        filtered_infos = list()
+        redirected_infos = list()
+        source_infos = list()
+
         for info in infos:
             if not settings.filter_with_title(info.filename):
                 logger.warning(f"Filtered page: '{info.filename}'")
                 continue
-            filtered_infos.append(info)
+            if info.meta.redirect:
+                redirected_infos.append(info)
+            else:
+                source_infos.append(info)
+
+        # TODO: Update alias
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:
             mkdocs = yaml.safe_load(f)
@@ -99,7 +113,7 @@ class BuildApp:
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
         count = len(infos)
-        for i, info in enumerate(infos, start=1):
+        for i, info in enumerate(source_infos, start=1):
             logger.info(f"Convert ({i}/{count}): {info.filename}")
             markdown_path = docs_dirpath / info.markdown_filename
             if ask_overwrite(markdown_path, force_yes=self._yes):
