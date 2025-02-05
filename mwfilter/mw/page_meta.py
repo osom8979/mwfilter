@@ -30,6 +30,8 @@ class PageMeta:
     edit_time: Optional[datetime] = None
     last_rev_time: Optional[datetime] = None
 
+    _alias: List[str] = field(default_factory=list)
+
     @classmethod
     def from_page(cls, page: Page):
         return cls(
@@ -75,3 +77,10 @@ class PageMeta:
     @property
     def markdown_filename(self) -> str:
         return self.filename + ".md"
+
+    @property
+    def alias(self):
+        return self._alias
+
+    def append_alias(self, page_name: str) -> None:
+        self._alias.append(page_name)

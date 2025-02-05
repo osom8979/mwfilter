@@ -5,13 +5,17 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import Sequence
+from re import Pattern
+from re import compile as re_compile
 
-from pypandoc import convert_file
+from pypandoc import convert_file, convert_text
 from type_serialize import deserialize
 
 from mwfilter.assets import get_markdown_filter_lua
 from mwfilter.mw.page_meta import PageMeta
+from mwfilter.pandoc.mediawiki.converter import mediawiki_to_markdown
+
+REDIRECT_REGEX: Pattern[str] = re_compile(r"\s*#REDIRECT\s*\[\[(.*)]]")
 
 
 @dataclass
@@ -59,11 +63,22 @@ class ConvertInfo:
         return urllib.parse.quote(self.name)
 
     @property
+    def redirect_pagename(self) -> str:
+        if match := REDIRECT_REGEX.match(self.text.strip()):
+            return match.group(1)
+        else:
+            return str()
+
+    @property
     def yaml_frontmatter(self):
         buffer = StringIO()
         buffer.write("---\n")
         buffer.write(f"title: {self.name}\n")
         buffer.write(f"date: {self.date}\n")
+        if self.meta.alias:
+            buffer.write("alias:\n")
+            for alias in self.meta.alias:
+                buffer.write(f"  - {alias}\n")
         buffer.write("---\n")
         buffer.write("\n")
         return buffer.getvalue()
@@ -76,9 +91,6 @@ class ConvertInfo:
             filters=[get_markdown_filter_lua()],
         )
 
-
-def find_convert_info(infos: Sequence[ConvertInfo], page_name: str) -> ConvertInfo:
-    for info in infos:
-        if info.name == page_name:
-            return info
-    raise IndexError("Not found settings page")
+    def as_markdown2(self) -> str:
+        with open(self.text_path, "rt") as f:
+            return self.yaml_frontmatter + mediawiki_to_markdown(f.read())

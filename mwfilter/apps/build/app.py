@@ -86,7 +86,7 @@ class BuildApp:
         infos = self.create_convert_infos()
 
         redirected_infos = list()
-        source_infos = list()
+        source_infos = dict()
 
         for info in infos:
             if not settings.filter_with_title(info.filename):
@@ -95,9 +95,12 @@ class BuildApp:
             if info.meta.redirect:
                 redirected_infos.append(info)
             else:
-                source_infos.append(info)
+                source_infos[info.filename] = info
 
-        # TODO: Update alias
+        for info in redirected_infos:
+            redirect_pagename = info.redirect_pagename
+            if source_info := source_infos.get(redirect_pagename):
+                source_info.meta.append_alias(info.filename)
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:
             mkdocs = yaml.safe_load(f)
@@ -112,9 +115,9 @@ class BuildApp:
         logger.info(f"Docs dir: '{docs_dir}'")
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
-        count = len(infos)
-        for i, info in enumerate(source_infos, start=1):
-            logger.info(f"Convert ({i}/{count}): {info.filename}")
+        source_count = len(source_infos)
+        for i, info in enumerate(source_infos.values(), start=1):
+            logger.info(f"Convert ({i}/{source_count}): {info.filename}")
             markdown_path = docs_dirpath / info.markdown_filename
             if ask_overwrite(markdown_path, force_yes=self._yes):
                 markdown_path.parent.mkdir(parents=True, exist_ok=True)
