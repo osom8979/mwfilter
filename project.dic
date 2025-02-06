@@ -13,6 +13,7 @@ denypatterns
 dirnames
 dirpath
 dockerignore
+emph
 ghcr
 levelname
 meipass
@@ -21,4 +22,5 @@ nocov
 pagename
 pythonpath
 siteinfo
+subscripted
 vimspector
