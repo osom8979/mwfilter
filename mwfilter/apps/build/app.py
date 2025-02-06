@@ -29,6 +29,8 @@ class BuildApp:
 
         # Subparser arguments
         assert isinstance(args.mkdocs_yml, str)
+        assert isinstance(args.all, bool)
+        assert isinstance(args.pages, list)
 
         self._hostname = args.hostname
         self._yes = args.yes
@@ -36,6 +38,8 @@ class BuildApp:
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._settings_yml = settings_filepath(args.cache_dir, self._hostname)
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
+        self._all = args.all
+        self._pages = list(str(page_name) for page_name in args.pages)
 
     @staticmethod
     def find_json_files_recursively(root_dir: Path) -> List[Path]:
@@ -46,8 +50,26 @@ class BuildApp:
                     result.append(dirpath / filename)
         return result
 
+    def all_json_files(self) -> List[Path]:
+        return self.find_json_files_recursively(self._pages_dir)
+
+    def specified_json_files(self) -> List[Path]:
+        result = list()
+        for page_name in self._pages:
+            filepath = self._pages_dir / (page_name + ".json")
+            if not filepath.is_file():
+                raise FileNotFoundError(f"Not found JSON file: '{str(filepath)}'")
+            result.append(filepath)
+        return result
+
+    def selected_json_files(self) -> List[Path]:
+        if self._all:
+            return self.all_json_files()
+        else:
+            return self.specified_json_files()
+
     def create_convert_infos(self) -> List[ConvertInfo]:
-        json_filenames = self.find_json_files_recursively(self._pages_dir)
+        json_filenames = self.selected_json_files()
         if not json_filenames:
             raise FileNotFoundError(f"No JSON files found in '{self._pages_dir}'")
 

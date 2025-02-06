@@ -188,6 +188,19 @@ def add_build_parser(subparsers) -> None:
         default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
         help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
     )
+    parser.add_argument(
+        "--all",
+        "-a",
+        "-A",
+        action="store_true",
+        default=False,
+        help="Build all cache files and directories.",
+    )
+    parser.add_argument(
+        "pages",
+        nargs=REMAINDER,
+        help="Names of build pages.",
+    )
 
 
 def add_clean_parser(subparsers) -> None:
