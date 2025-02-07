@@ -32,6 +32,15 @@ class ListNumberDelim(StrEnum):
     TwoParens = "TwoParens"
 
 
+@unique
+class Alignment(StrEnum):
+    """Alignment of a table column."""
+    AlignLeft = "AlignLeft"
+    AlignRight = "AlignRight"
+    AlignCenter = "AlignCenter"
+    AlignDefault = "AlignDefault"
+
+
 class Meta(Dict[str, Any]):
     pass
 
@@ -529,13 +538,6 @@ class HorizontalRule(Block):
 
 
 @dataclass
-class Table(Block):
-    @classmethod
-    def parse_object(cls, e):
-        return cls()
-
-
-@dataclass
 class ShortCaption:
     """A short caption, for use in, for instance, lists of figures."""
     inlines: List[Inline] = field(default_factory=list)
@@ -564,6 +566,152 @@ class Caption:
         for e_block in e[1]:
             blocks.append(parse_block(e_block))
         return cls(short_caption, blocks)
+
+
+@dataclass
+class ColSpec:
+    """The specification for a single table column."""
+    alignment: Alignment = Alignment.AlignDefault
+    col_width: float = 0.0
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        assert len(e) == 2
+        alignment = Alignment(e[0])
+        col_width = e[1]
+        assert isinstance(col_width, float)
+        return cls(alignment, col_width)
+
+
+@dataclass
+class Cell:
+    """A table cell."""
+    attr: Attr = field(default_factory=Attr)
+    alignment: Alignment = Alignment.AlignDefault
+    row_span: int = 0
+    col_span: int = 0
+    blocks: List[Block] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        alignment = Alignment(e[1])
+        row_span = e[2]
+        col_span = e[3]
+        assert isinstance(row_span, int)
+        assert isinstance(col_span, int)
+        blocks = list()
+        for e_block in e[4]:
+            blocks.append(parse_block(e_block))
+        return cls(attr, alignment, row_span, col_span, blocks)
+
+
+@dataclass
+class Row:
+    """A table row."""
+    attr: Attr = field(default_factory=Attr)
+    cells: List[Cell] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        assert len(e) == 2
+        attr = Attr.parse_object(e[0])
+        cells = list()
+        for e_cell in e[1]:
+            cells.append(Cell.parse_object(e_cell))
+        return cls(attr, cells)
+
+
+@dataclass
+class TableHead:
+    """The head of a table."""
+    attr: Attr = field(default_factory=Attr)
+    rows: List[Row] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        rows = list()
+        for e_row in e[1]:
+            rows.append(Row.parse_object(e_row))
+        return cls(attr, rows)
+
+
+@dataclass
+class TableBody:
+    """
+    A body of a table, with an intermediate head, intermediate body,
+    and the specified number of row header columns in the intermediate body.
+    """
+
+    attr: Attr = field(default_factory=Attr)
+    row_head_columns: int = 0
+    header_rows: List[Row] = field(default_factory=list)
+    body_rows: List[Row] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        assert len(e) == 4
+        attr = Attr.parse_object(e[0])
+        row_head_columns = e[1]
+        assert isinstance(row_head_columns, int)
+        header_rows = list()
+        for e_row in e[1]:
+            header_rows.append(Row.parse_object(e_row))
+        body_rows = list()
+        for e_row in e[1]:
+            body_rows.append(Row.parse_object(e_row))
+        return cls(attr, row_head_columns, header_rows, body_rows)
+
+
+@dataclass
+class TableFoot:
+    """The foot of a table."""
+    attr: Attr = field(default_factory=Attr)
+    rows: List[Row] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        rows = list()
+        for e_row in e[1]:
+            rows.append(Row.parse_object(e_row))
+        return cls(attr, rows)
+
+
+@dataclass
+class Table(Block):
+    """
+    Table, with attributes, caption, optional short caption, column alignments and
+    widths (required), table head, table bodies, and table foot
+    """
+    attr: Attr = field(default_factory=Attr)
+    caption: Caption = field(default_factory=Caption)
+    col_specs: List[ColSpec] = field(default_factory=list)
+    table_head: TableHead = field(default_factory=TableHead)
+    table_body: List[TableBody] = field(default_factory=list)
+    table_foot: TableFoot = field(default_factory=TableFoot)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        caption = Caption.parse_object(e[1])
+        col_specs = list()
+        for e_col_spec in e[2]:
+            col_specs.append(ColSpec.parse_object(e_col_spec))
+        table_head = TableHead.parse_object(e[3])
+        table_body = list()
+        for e_table_body in e[4]:
+            table_body.append(TableBody.parse_object(e_table_body))
+        table_foot = TableFoot.parse_object(e[5])
+        return cls(attr, caption, col_specs, table_head, table_body, table_foot)
 
 
 @dataclass
@@ -598,7 +746,6 @@ class Div(Block):
         for e_block in e[1]:
             blocks.append(parse_block(e_block))
         return cls(attr, blocks)
-
 
 
 def parse_block(e) -> Block:
@@ -683,50 +830,6 @@ class Pandoc:
     # ----------------------------------------------------------------------------------
     # Block elements.
     # ----------------------------------------------------------------------------------
-
-    def on_table(self, e):
-        """
-        Table, with attributes, caption, optional short caption, column alignments and
-        widths (required), table head, table bodies, and table foot
-        """
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        self.on_caption(e[1])
-        for col_spec in e[2]:
-            self.on_col_spec(col_spec)
-        self.on_table_head(e[3])
-        for table_body in e[4]:
-            self.on_table_body(table_body)
-        self.on_table_foot(e[5])
-        return e
-
-    def on_table_head(self, e):
-        """The head of a table."""
-        assert self
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        for row in e[1]:
-            self.on_row(row)
-        return e
-
-    def on_table_foot(self, e):
-        assert self
-        return e
-
-    # ----------------------------------------------------------------------------------
-    # Table elements.
-    # ----------------------------------------------------------------------------------
-
-    def on_col_spec(self, e):
-        """The specification for a single table column."""
-        assert self
-        self.on_alignment(e[0])
-        col_width = e[1]
-        # The width of a table column,
-        # as a percentage of the text width.
-        assert isinstance(col_width, float)
-
-        return e
 
     def on_alignment(self, e):
         """Alignment of a table column."""
