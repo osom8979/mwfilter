@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum, unique
 from json import loads
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from pypandoc import convert_text
 
@@ -112,6 +112,10 @@ class Attr:
 
         return cls(identifier, classes, pairs)
 
+    @property
+    def is_empty(self):
+        return not self.identifier and not self.classes and not self.pairs
+
 
 class Inline:
     pass
@@ -119,6 +123,7 @@ class Inline:
 
 @dataclass
 class Str(Inline):
+    """Text (string)"""
     text: str = field(default_factory=str)
 
     @classmethod
@@ -255,9 +260,20 @@ class Link(Inline):
 
 @dataclass
 class Image(Inline):
+    """Image: alt text (list of inlines), target"""
+    attr: Attr = field(default_factory=Attr)
+    inlines: List[Inline] = field(default_factory=list)
+    target: Target = field(default_factory=Target)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        inlines = list()
+        for e_inline in e[1]:
+            inlines.append(parse_inline(e_inline))
+        target = Target.parse_object(e[2])
+        return cls(attr, inlines, target)
 
 
 @dataclass
@@ -517,10 +533,52 @@ class Table(Block):
 
 
 @dataclass
-class Figure(Block):
+class ShortCaption:
+    """A short caption, for use in, for instance, lists of figures."""
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        inlines = list()
+        for e_inline in e:
+            inlines.append(parse_inline(e_inline))
+        return cls(inlines)
+
+
+@dataclass
+class Caption:
+    """The caption of a table or figure, with optional short caption."""
+    short_caption: Optional[ShortCaption] = None
+    blocks: List[Block] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        short_caption = e[0]
+        assert isinstance(short_caption, (type(None), list))
+        blocks = list()
+        for e_block in e[1]:
+            blocks.append(parse_block(e_block))
+        return cls(short_caption, blocks)
+
+
+@dataclass
+class Figure(Block):
+    """Figure, with attributes, caption, and content (list of blocks)"""
+    attr: Attr = field(default_factory=Attr)
+    caption: Caption = field(default_factory=Caption)
+    blocks: List[Block] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        caption = Caption.parse_object(e[1])
+        blocks = list()
+        for e_block in e[2]:
+            blocks.append(parse_block(e_block))
+        return cls(attr, caption, blocks)
 
 
 @dataclass
@@ -613,16 +671,6 @@ class Pandoc:
     # Block elements.
     # ----------------------------------------------------------------------------------
 
-    def on_header(self, e):
-        """Header - level (integer) and text (inlines)"""
-        assert isinstance(e, list)
-        level = e[0]
-        assert isinstance(level, int)
-        self.on_attr(e[1])
-        for inline in e[2]:
-            self.on_inline(inline)
-        return e
-
     def on_horizontal_rule(self, e):
         """Horizontal rule"""
         assert self
@@ -661,15 +709,6 @@ class Pandoc:
 
     def on_table_foot(self, e):
         assert self
-        return e
-
-    def on_figure(self, e):
-        """Figure, with attributes, caption, and content (list of blocks)"""
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        self.on_caption(e[1])
-        for block in e[2]:
-            self.on_block(block)
         return e
 
     def on_div(self, e):
@@ -743,14 +782,6 @@ class Pandoc:
     # ----------------------------------------------------------------------------------
     # Inline elements.
     # ----------------------------------------------------------------------------------
-
-    def on_str(self, e):
-        """Text (string)"""
-        assert self
-        assert isinstance(e, list)
-        text = e[0]
-        assert isinstance(text, str)
-        return e
 
     def on_emph(self, e):
         """Emphasized text (list of inlines)"""
@@ -852,15 +883,6 @@ class Pandoc:
         assert isinstance(format_, str)
         text = e[1]
         assert isinstance(text, str)
-        return e
-
-    def on_image(self, e):
-        """Image: alt text (list of inlines), target"""
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        for inline in e[1]:
-            self.on_inline(inline)
-        self.on_target(e[2])
         return e
 
     def on_note(self, e):
