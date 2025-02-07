@@ -520,8 +520,11 @@ class Header(Block):
 
 @dataclass
 class HorizontalRule(Block):
+    """Horizontal rule"""
+
     @classmethod
     def parse_object(cls, e):
+        assert e is None
         return cls()
 
 
@@ -583,9 +586,19 @@ class Figure(Block):
 
 @dataclass
 class Div(Block):
+    """Generic block container with attributes"""
+    attr: Attr = field(default_factory=Attr)
+    blocks: List[Block] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        attr = Attr.parse_object(e[0])
+        blocks = list()
+        for e_block in e[1]:
+            blocks.append(parse_block(e_block))
+        return cls(attr, blocks)
+
 
 
 def parse_block(e) -> Block:
@@ -671,11 +684,6 @@ class Pandoc:
     # Block elements.
     # ----------------------------------------------------------------------------------
 
-    def on_horizontal_rule(self, e):
-        """Horizontal rule"""
-        assert self
-        return e
-
     def on_table(self, e):
         """
         Table, with attributes, caption, optional short caption, column alignments and
@@ -692,12 +700,6 @@ class Pandoc:
         self.on_table_foot(e[5])
         return e
 
-    def on_caption(self, e):
-        """The caption of a table or figure, with optional short caption."""
-        assert self
-        # (Maybe ShortCaption) [Block]
-        return e
-
     def on_table_head(self, e):
         """The head of a table."""
         assert self
@@ -709,14 +711,6 @@ class Pandoc:
 
     def on_table_foot(self, e):
         assert self
-        return e
-
-    def on_div(self, e):
-        """Generic block container with attributes"""
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        for block in e[2]:
-            self.on_block(block)
         return e
 
     # ----------------------------------------------------------------------------------
