@@ -7,99 +7,12 @@ from typing import Any, Dict, Final, List, Optional, Tuple
 
 from pypandoc import convert_text
 
-from mwfilter.pandoc.ast.enums import (
-    Alignment,
-    ListNumberDelim,
-    ListNumberStyle,
-    MathType,
-    QuoteType,
-)
-
-
-class Meta(Dict[str, Any]):
-    pass
-
-
-@dataclass
-class ListAttributes:
-    """
-    List attributes.
-    The first element of the triple is the start number of the list.
-    """
-
-    start_number: int = 0
-    list_number_style: ListNumberStyle = ListNumberStyle.DefaultStyle
-    list_number_delim: ListNumberDelim = ListNumberDelim.DefaultDelim
-
-    @classmethod
-    def parse_object(cls, e):
-        assert isinstance(e, list)
-        assert len(e) == 3
-        start_number = e[0]
-        assert isinstance(start_number, int)
-        list_number_style = ListNumberStyle.parse_object(e[1])
-        list_number_delim = ListNumberDelim.parse_object(e[2])
-        return cls(start_number, list_number_style, list_number_delim)
-
-
-@dataclass
-class Target:
-    """Link target (URL, title)."""
-
-    url: str = field(default_factory=str)
-    title: str = field(default_factory=str)
-
-    @classmethod
-    def parse_object(cls, e):
-        assert isinstance(e, list)
-        url = e[0]
-        title = e[1]
-        assert isinstance(url, str)
-        assert isinstance(title, str)
-        return cls(url, title)
-
-    @property
-    def is_wikilink(self):
-        return self.title == "wikilink"
-
-
-@dataclass
-class Attr:
-    """Attributes: identifier, classes, key-value pairs"""
-
-    identifier: str = field(default_factory=str)
-    classes: List[str] = field(default_factory=list)
-    pairs: List[Tuple[str, str]] = field(default_factory=list)
-
-    @classmethod
-    def parse_object(cls, e):
-        assert isinstance(e, list)
-
-        identifier = e[0]
-        assert isinstance(identifier, str)
-
-        classes = list()
-        for e_class in e[1]:
-            assert isinstance(e_class, str)
-            classes.append(e_class)
-
-        pairs = list()
-        for e_pair in e[2]:
-            key = e_pair[0]
-            value = e_pair[1]
-            assert isinstance(key, str)
-            assert isinstance(value, str)
-            pairs.append((key, value))
-
-        return cls(identifier, classes, pairs)
-
-    @property
-    def is_empty(self):
-        return not self.identifier and not self.classes and not self.pairs
-
-
-class Inline:
-    pass
+from mwfilter.pandoc.ast.attr import Attr
+from mwfilter.pandoc.ast.blocks.block import Block
+from mwfilter.pandoc.ast.enums import Alignment, MathType, QuoteType
+from mwfilter.pandoc.ast.inlines.inline import Inline
+from mwfilter.pandoc.ast.list_attributes import ListAttributes
+from mwfilter.pandoc.ast.target import Target
 
 
 @dataclass
@@ -443,10 +356,6 @@ def parse_inlines(e):
 def parse_inliness(e):
     assert isinstance(e, list)
     return list(parse_inlines(item) for item in e)
-
-
-class Block:
-    pass
 
 
 @dataclass
@@ -923,7 +832,7 @@ def parse_blockss(e):
 @dataclass
 class Pandoc:
     pandoc_api_version: Tuple[int, int, int] = 0, 0, 0
-    meta: Meta = field(default_factory=Meta)
+    meta: Dict[str, Any] = field(default_factory=dict)
     blocks: List[Block] = field(default_factory=list)
 
     @classmethod
@@ -948,9 +857,9 @@ class Pandoc:
 
         if e_meta := e.get("meta"):
             assert isinstance(e_meta, dict)
-            meta = Meta(e_meta)
+            meta = e_meta.copy()
         else:
-            meta = Meta()
+            meta = dict()
 
         blocks = list()
         if e_blocks := e.get("blocks"):
