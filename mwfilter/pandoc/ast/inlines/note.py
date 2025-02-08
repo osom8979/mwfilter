@@ -16,7 +16,7 @@ class Note(Inline):
     @classmethod
     def parse_object(cls, e):
         # [IMPORTANT] Avoid 'circular import' issues
-        from mwfilter.pandoc.ast import parse_blocks
+        from mwfilter.pandoc.ast.blocks.parser import parse_blocks
 
         assert isinstance(e, list)
         return cls(parse_blocks(e))

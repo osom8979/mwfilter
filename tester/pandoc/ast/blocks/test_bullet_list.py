@@ -2,19 +2,21 @@
 
 from unittest import TestCase, main
 
-import mwfilter.pandoc.ast.inlines.str_
-from mwfilter.pandoc import ast
+from mwfilter.pandoc.ast.blocks.bullet_list import BulletList
+from mwfilter.pandoc.ast.blocks.plain import Plain
+from mwfilter.pandoc.ast.inlines.str_ import Str
+from mwfilter.pandoc.ast.pandoc import Pandoc
 
 
 class BulletListTestCase(TestCase):
     def test_default(self):
         text = "* A"
 
-        obj = ast.Pandoc.parse_text(text)
+        obj = Pandoc.parse_text(text)
         self.assertTrue(1, len(obj.blocks))
 
         b0 = obj.blocks[0]
-        self.assertIsInstance(b0, ast.BulletList)
+        self.assertIsInstance(b0, BulletList)
         self.assertEqual(1, len(b0.blockss))
 
         b0bs0 = b0.blockss[0]
@@ -22,10 +24,10 @@ class BulletListTestCase(TestCase):
         self.assertEqual(1, len(b0bs0))
         b0bs00 = b0bs0[0]
 
-        self.assertIsInstance(b0bs00, ast.Plain)
+        self.assertIsInstance(b0bs00, Plain)
         self.assertEqual(1, len(b0bs00.inlines))
         b0bs00i0 = b0bs00.inlines[0]
-        self.assertIsInstance(b0bs00i0, mwfilter.pandoc.ast.inlines.str_.Str)
+        self.assertIsInstance(b0bs00i0, Str)
         self.assertEqual("A", b0bs00i0.text)
 
 
