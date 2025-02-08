@@ -3,6 +3,7 @@
 from unittest import TestCase, main
 
 from mwfilter.pandoc import ast
+from mwfilter.pandoc.ast.enums import Alignment
 
 
 class TableTestCase(TestCase):
@@ -29,12 +30,12 @@ class TableTestCase(TestCase):
         self.assertEqual(2, len(b0.col_specs))
         b0cs0 = b0.col_specs[0]
         self.assertIsInstance(b0cs0, ast.ColSpec)
-        self.assertEqual(b0cs0.alignment, ast.Alignment.AlignDefault)
+        self.assertEqual(Alignment.AlignDefault, b0cs0.alignment)
         self.assertTrue(b0cs0.col_width.is_default)
 
         b0cs1 = b0.col_specs[1]
         self.assertIsInstance(b0cs1, ast.ColSpec)
-        self.assertEqual(b0cs1.alignment, ast.Alignment.AlignDefault)
+        self.assertEqual(Alignment.AlignDefault, b0cs1.alignment)
         self.assertTrue(b0cs1.col_width.is_default)
 
         b0th = b0.table_head
@@ -50,7 +51,7 @@ class TableTestCase(TestCase):
         b0thr0c0 = b0thr0.cells[0]
         self.assertIsInstance(b0thr0c0, ast.Cell)
         self.assertTrue(b0thr0c0.attr.is_empty)
-        self.assertEqual(ast.Alignment.AlignDefault, b0thr0c0.alignment)
+        self.assertEqual(Alignment.AlignDefault, b0thr0c0.alignment)
         self.assertEqual(1, b0thr0c0.col_span)
         self.assertEqual(1, b0thr0c0.row_span)
         self.assertEqual(1, len(b0thr0c0.blocks))
@@ -64,7 +65,7 @@ class TableTestCase(TestCase):
         b0thr0c1 = b0thr0.cells[1]
         self.assertIsInstance(b0thr0c1, ast.Cell)
         self.assertTrue(b0thr0c1.attr.is_empty)
-        self.assertEqual(ast.Alignment.AlignDefault, b0thr0c1.alignment)
+        self.assertEqual(Alignment.AlignDefault, b0thr0c1.alignment)
         self.assertEqual(1, b0thr0c1.col_span)
         self.assertEqual(1, b0thr0c1.row_span)
         self.assertEqual(1, len(b0thr0c1.blocks))

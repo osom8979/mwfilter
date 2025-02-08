@@ -3,6 +3,7 @@
 from unittest import TestCase, main
 
 from mwfilter.pandoc import ast
+from mwfilter.pandoc.ast.enums import ListNumberDelim, ListNumberStyle
 
 
 class OrderedListTestCase(TestCase):
@@ -16,8 +17,8 @@ class OrderedListTestCase(TestCase):
         self.assertIsInstance(b0, ast.OrderedList)
         self.assertEqual(1, b0.list_attributes.start_number)
         b0la = b0.list_attributes
-        self.assertEqual(ast.ListNumberStyle.DefaultStyle, b0la.list_number_style)
-        self.assertEqual(ast.ListNumberDelim.DefaultDelim, b0la.list_number_delim)
+        self.assertEqual(ListNumberStyle.DefaultStyle, b0la.list_number_style)
+        self.assertEqual(ListNumberDelim.DefaultDelim, b0la.list_number_delim)
         self.assertEqual(1, len(b0.blockss))
 
         b0bs0 = b0.blockss[0]
