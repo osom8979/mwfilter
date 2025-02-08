@@ -2,6 +2,8 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.image
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -23,7 +25,7 @@ class FigureTestCase(TestCase):
         self.assertEqual(1, len(b0b0.inlines))
 
         b0b0i0 = b0b0.inlines[0]
-        self.assertIsInstance(b0b0i0, ast.Image)
+        self.assertIsInstance(b0b0i0, mwfilter.pandoc.ast.inlines.image.Image)
         self.assertTrue(b0b0i0.attr.is_empty)
         self.assertFalse(b0b0i0.inlines)
         self.assertEqual("A.png", b0b0i0.target.url)
@@ -34,7 +36,7 @@ class FigureTestCase(TestCase):
         self.assertEqual(1, len(b0cb0.inlines))
 
         b0cb0i0 = b0cb0.inlines[0]
-        self.assertIsInstance(b0cb0i0, ast.Str)
+        self.assertIsInstance(b0cb0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("A.png", b0cb0i0.text)
 
 

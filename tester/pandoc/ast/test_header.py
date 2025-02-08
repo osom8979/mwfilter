@@ -2,6 +2,9 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.link
+import mwfilter.pandoc.ast.inlines.space
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -21,14 +24,14 @@ class HeaderTestCase(TestCase):
         self.assertTrue(3, len(b0.inlines))
 
         b0i0 = b0.inlines[0]
-        self.assertIsInstance(b0i0, ast.Str)
+        self.assertIsInstance(b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("BBB", b0i0.text)
 
         b0i1 = b0.inlines[1]
-        self.assertIsInstance(b0i1, ast.Space)
+        self.assertIsInstance(b0i1, mwfilter.pandoc.ast.inlines.space.Space)
 
         b0i2 = b0.inlines[2]
-        self.assertIsInstance(b0i2, ast.Link)
+        self.assertIsInstance(b0i2, mwfilter.pandoc.ast.inlines.link.Link)
         self.assertFalse(b0i2.attr.identifier)
         self.assertFalse(b0i2.attr.classes)
         self.assertFalse(b0i2.attr.pairs)
@@ -37,7 +40,7 @@ class HeaderTestCase(TestCase):
         self.assertTrue(b0i2.target.is_wikilink)
 
         b0i2i0 = b0i2.inlines[0]
-        self.assertIsInstance(b0i2i0, ast.Str)
+        self.assertIsInstance(b0i2i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("Title", b0i2i0.text)
 
 

@@ -2,6 +2,7 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -17,7 +18,7 @@ class ParaTestCase(TestCase):
         self.assertTrue(1, len(b0.inlines))
 
         b0i0 = b0.inlines[0]
-        self.assertIsInstance(b0i0, ast.Str)
+        self.assertIsInstance(b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("AAA", b0i0.text)
 
 

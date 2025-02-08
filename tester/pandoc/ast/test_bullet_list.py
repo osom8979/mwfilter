@@ -2,6 +2,7 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -24,7 +25,7 @@ class BulletListTestCase(TestCase):
         self.assertIsInstance(b0bs00, ast.Plain)
         self.assertEqual(1, len(b0bs00.inlines))
         b0bs00i0 = b0bs00.inlines[0]
-        self.assertIsInstance(b0bs00i0, ast.Str)
+        self.assertIsInstance(b0bs00i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("A", b0bs00i0.text)
 
 

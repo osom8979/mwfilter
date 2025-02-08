@@ -2,6 +2,7 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -21,7 +22,7 @@ class BlockQuoteTestCase(TestCase):
         self.assertEqual(1, len(b0b0.inlines))
 
         b0b0i0 = b0b0.inlines[0]
-        self.assertIsInstance(b0b0i0, ast.Str)
+        self.assertIsInstance(b0b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("AAA", b0b0i0.text)
 
 

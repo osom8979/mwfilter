@@ -2,6 +2,7 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 
 
@@ -22,7 +23,7 @@ class RawBlockTestCase(TestCase):
         self.assertEqual(1, len(b1.inlines))
 
         b1i0 = b1.inlines[0]
-        self.assertIsInstance(b1i0, ast.Str)
+        self.assertIsInstance(b1i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("AAA", b1i0.text)
 
         b2 = obj.blocks[2]

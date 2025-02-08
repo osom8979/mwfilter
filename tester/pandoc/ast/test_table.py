@@ -2,6 +2,7 @@
 
 from unittest import TestCase, main
 
+import mwfilter.pandoc.ast.inlines.str_
 from mwfilter.pandoc import ast
 from mwfilter.pandoc.ast.enums import Alignment
 
@@ -24,7 +25,7 @@ class TableTestCase(TestCase):
         self.assertEqual(1, len(b0cb0.inlines))
 
         b0cb0i0 = b0cb0.inlines[0]
-        self.assertIsInstance(b0cb0i0, ast.Str)
+        self.assertIsInstance(b0cb0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("C", b0cb0i0.text)
 
         self.assertEqual(2, len(b0.col_specs))
@@ -59,7 +60,7 @@ class TableTestCase(TestCase):
         self.assertIsInstance(b0thr0c0b0, ast.Para)
         self.assertEqual(1, len(b0thr0c0b0.inlines))
         b0thr0c0b0i0 = b0thr0c0b0.inlines[0]
-        self.assertIsInstance(b0thr0c0b0i0, ast.Str)
+        self.assertIsInstance(b0thr0c0b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("H1", b0thr0c0b0i0.text)
 
         b0thr0c1 = b0thr0.cells[1]
@@ -73,7 +74,7 @@ class TableTestCase(TestCase):
         self.assertIsInstance(b0thr0c1b0, ast.Para)
         self.assertEqual(1, len(b0thr0c1b0.inlines))
         b0thr0c1b0i0 = b0thr0c1b0.inlines[0]
-        self.assertIsInstance(b0thr0c1b0i0, ast.Str)
+        self.assertIsInstance(b0thr0c1b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("H2", b0thr0c1b0i0.text)
 
         self.assertEqual(1, len(b0.table_body))
@@ -97,7 +98,7 @@ class TableTestCase(TestCase):
         self.assertIsInstance(b0tb0br0c0b0, ast.Para)
         self.assertEqual(1, len(b0tb0br0c0b0.inlines))
         b0tb0br0c0b0i0 = b0tb0br0c0b0.inlines[0]
-        self.assertIsInstance(b0tb0br0c0b0i0, ast.Str)
+        self.assertIsInstance(b0tb0br0c0b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("RH", b0tb0br0c0b0i0.text)
 
         b0tb0br0c1 = b0tb0br0.cells[1]
@@ -108,7 +109,7 @@ class TableTestCase(TestCase):
         self.assertIsInstance(b0tb0br0c1b0, ast.Para)
         self.assertEqual(1, len(b0tb0br0c1b0.inlines))
         b0tb0br0c1b0i0 = b0tb0br0c1b0.inlines[0]
-        self.assertIsInstance(b0tb0br0c1b0i0, ast.Str)
+        self.assertIsInstance(b0tb0br0c1b0i0, mwfilter.pandoc.ast.inlines.str_.Str)
         self.assertEqual("RD", b0tb0br0c1b0i0.text)
 
         b0tf = b0.table_foot
