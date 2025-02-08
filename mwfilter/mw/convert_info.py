@@ -8,7 +8,7 @@ from pathlib import Path
 from re import Pattern
 from re import compile as re_compile
 
-from pypandoc import convert_file, convert_text
+from pypandoc import convert_file
 from type_serialize import deserialize
 
 from mwfilter.assets import get_markdown_filter_lua

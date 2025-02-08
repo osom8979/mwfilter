@@ -4,7 +4,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum, unique
 from json import loads
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Final, List, Optional, Tuple
 
 from pypandoc import convert_text
 
@@ -21,6 +21,11 @@ class ListNumberStyle(StrEnum):
     LowerAlpha = "LowerAlpha"
     UpperAlpha = "UpperAlpha"
 
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
+
 
 @unique
 class ListNumberDelim(StrEnum):
@@ -31,14 +36,63 @@ class ListNumberDelim(StrEnum):
     OneParen = "OneParen"
     TwoParens = "TwoParens"
 
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
+
 
 @unique
 class Alignment(StrEnum):
     """Alignment of a table column."""
+
     AlignLeft = "AlignLeft"
     AlignRight = "AlignRight"
     AlignCenter = "AlignCenter"
     AlignDefault = "AlignDefault"
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
+
+
+@unique
+class QuoteType(StrEnum):
+    """Type of quotation marks to use in Quoted inline."""
+
+    SingleQuote = "SingleQuote"
+    DoubleQuote = "DoubleQuote"
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
+
+
+@unique
+class CitationMode(StrEnum):
+    AuthorInText = "AuthorInText"
+    SuppressAuthor = "SuppressAuthor"
+    NormalCitation = "NormalCitation"
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
+
+
+@unique
+class MathType(StrEnum):
+    """Type of math element (display or inline)."""
+
+    DisplayMath = "DisplayMath"
+    InlineMath = "InlineMath"
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        return cls(e["t"])
 
 
 class Meta(Dict[str, Any]):
@@ -51,6 +105,7 @@ class ListAttributes:
     List attributes.
     The first element of the triple is the start number of the list.
     """
+
     start_number: int = 0
     list_number_style: ListNumberStyle = ListNumberStyle.DefaultStyle
     list_number_delim: ListNumberDelim = ListNumberDelim.DefaultDelim
@@ -58,23 +113,18 @@ class ListAttributes:
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 3
         start_number = e[0]
         assert isinstance(start_number, int)
-
-        e_list_number_style = e[1]
-        assert isinstance(e_list_number_style, dict)
-        list_number_style = ListNumberStyle(e_list_number_style["t"])
-
-        e_list_number_delim = e[2]
-        assert isinstance(e_list_number_delim, dict)
-        list_number_delim = ListNumberDelim(e_list_number_delim["t"])
-
+        list_number_style = ListNumberStyle.parse_object(e[1])
+        list_number_delim = ListNumberDelim.parse_object(e[2])
         return cls(start_number, list_number_style, list_number_delim)
 
 
 @dataclass
 class Target:
     """Link target (URL, title)."""
+
     url: str = field(default_factory=str)
     title: str = field(default_factory=str)
 
@@ -95,6 +145,7 @@ class Target:
 @dataclass
 class Attr:
     """Attributes: identifier, classes, key-value pairs"""
+
     identifier: str = field(default_factory=str)
     classes: List[str] = field(default_factory=list)
     pairs: List[Tuple[str, str]] = field(default_factory=list)
@@ -133,6 +184,7 @@ class Inline:
 @dataclass
 class Str(Inline):
     """Text (string)"""
+
     text: str = field(default_factory=str)
 
     @classmethod
@@ -143,72 +195,144 @@ class Str(Inline):
 
 @dataclass
 class Emph(Inline):
+    """Emphasized text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Underline(Inline):
+    """Underlined text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Strong(Inline):
+    """Strongly emphasized text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Strikeout(Inline):
+    """Strikeout text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Superscript(Inline):
+    """Superscripted text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Subscript(Inline):
+    """Subscripted text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class SmallCaps(Inline):
+    """Small caps text (list of inlines)"""
+
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Quoted(Inline):
+    """Quoted text (list of inlines)"""
+
+    quote_type: QuoteType = QuoteType.SingleQuote
+    inlines: List[Inline] = field(default_factory=list)
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, list)
+        quote_type = QuoteType.parse_object(e[0])
+        inlines = parse_inlines(e[1])
+        return cls(quote_type, inlines)
+
+
+@dataclass
+class Citation:
+    # id_: str
+    # prefix: List[Inline]
+    # suffix: List[Inline]
+    # mode: CitationMode
+    # notenum: int
+    # hash: int
+
     @classmethod
     def parse_object(cls, e):
         return cls()
+
+    @classmethod
+    def parse_object_with_list(cls, e):
+        return list(cls.parse_object(item) for item in e)
 
 
 @dataclass
 class Cite(Inline):
+    """Citation (list of inlines)"""
+
+    citations: List[Citation] = field(default_factory=list)
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        assert len(e) == 2
+        citations = Citation.parse_object_with_list(e[0])
+        inlines = parse_inlines(e[1])
+        return cls(citations, inlines)
 
 
 @dataclass
 class Code(Inline):
+    """Inline code (literal)"""
+
+    attr: Attr = field(default_factory=Attr)
+    text: str = field(default_factory=str)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        assert len(e) == 2
+        attr = Attr.parse_object(e[0])
+        text = e[1]
+        return cls(attr, text)
 
 
 @dataclass
@@ -223,35 +347,63 @@ class Space(Inline):
 
 @dataclass
 class SoftBreak(Inline):
+    """Soft line break"""
+
     @classmethod
     def parse_object(cls, e):
+        assert e is None
         return cls()
 
 
 @dataclass
 class LineBreak(Inline):
+    """Hard line break"""
+
     @classmethod
     def parse_object(cls, e):
+        assert e is None
         return cls()
 
 
 @dataclass
 class Math(Inline):
+    """TeX's math (literal)"""
+
+    math_type: MathType = MathType.DisplayMath
+    text: str = field(default_factory=str)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        assert len(e) == 2
+        math_type = MathType.parse_object(e[0])
+        text = e[1]
+        assert isinstance(text, str)
+        return cls(math_type, text)
 
 
 @dataclass
 class RawInline(Inline):
+    """Raw inline"""
+
+    format: str = field(default_factory=str)
+    text: str = field(default_factory=str)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        assert len(e) == 2
+        format_ = e[0]
+        assert isinstance(format_, str)
+        text = e[1]
+        assert isinstance(text, str)
+        return cls(format_, text)
 
 
 @dataclass
 class Link(Inline):
     """Hyperlink: alt text (list of inlines), target"""
+
     attr: Attr = field(default_factory=Attr)
     inlines: List[Inline] = field(default_factory=list)
     target: Target = field(default_factory=Target)
@@ -259,10 +411,9 @@ class Link(Inline):
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 3
         attr = Attr.parse_object(e[0])
-        inlines = list()
-        for e_inline in e[1]:
-            inlines.append(parse_inline(e_inline))
+        inlines = parse_inlines(e[1])
         target = Target.parse_object(e[2])
         return cls(attr, inlines, target)
 
@@ -270,6 +421,7 @@ class Link(Inline):
 @dataclass
 class Image(Inline):
     """Image: alt text (list of inlines), target"""
+
     attr: Attr = field(default_factory=Attr)
     inlines: List[Inline] = field(default_factory=list)
     target: Target = field(default_factory=Target)
@@ -277,26 +429,39 @@ class Image(Inline):
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 3
         attr = Attr.parse_object(e[0])
-        inlines = list()
-        for e_inline in e[1]:
-            inlines.append(parse_inline(e_inline))
+        inlines = parse_inlines(e[1])
         target = Target.parse_object(e[2])
         return cls(attr, inlines, target)
 
 
 @dataclass
 class Note(Inline):
+    """Footnote or endnote"""
+
+    blocks: List["Block"] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        return cls(parse_blocks(e))
 
 
 @dataclass
 class Span(Inline):
+    """Generic inline container with attributes"""
+
+    attr: Attr = field(default_factory=Attr)
+    inlines: List[Inline] = field(default_factory=list)
+
     @classmethod
     def parse_object(cls, e):
-        return cls()
+        assert isinstance(e, list)
+        assert len(e) == 2
+        attr = Attr.parse_object(e[0])
+        inlines = parse_inlines(e[1])
+        return cls(attr, inlines)
 
 
 def parse_inline(e) -> Inline:
@@ -349,6 +514,16 @@ def parse_inline(e) -> Inline:
             raise ValueError(f"Unexpected inline type: {e_type}")
 
 
+def parse_inlines(e):
+    assert isinstance(e, list)
+    return list(parse_inline(item) for item in e)
+
+
+def parse_inliness(e):
+    assert isinstance(e, list)
+    return list(parse_inlines(item) for item in e)
+
+
 class Block:
     pass
 
@@ -356,57 +531,47 @@ class Block:
 @dataclass
 class Plain(Block):
     """Plain text, not a paragraph"""
+
     inlines: List[Inline] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        inlines = list()
-        for e_inline in e:
-            inlines.append(parse_inline(e_inline))
-        return cls(inlines)
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Para(Block):
     """Paragraph"""
+
     inlines: List[Inline] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        inlines = list()
-        for e_inline in e:
-            inlines.append(parse_inline(e_inline))
-        return cls(inlines)
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class LineBlock(Block):
     """Multiple non-breaking lines"""
+
     inliness: List[List[Inline]] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        inliness = list()
-        for e_inlines in e:
-            inlines = list()
-            for e_inline in e_inlines:
-                inlines.append(parse_inline(e_inline))
-            inliness.append(inlines)
-        return cls(inliness)
+        return cls(parse_inliness(e))
 
 
 @dataclass
 class CodeBlock(Block):
     """Code block (literal) with attributes"""
+
     attr: Attr = field(default_factory=Attr)
     text: str = field(default_factory=str)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         attr = Attr.parse_object(e[0])
         text = e[1]
         assert isinstance(text, str)
@@ -416,6 +581,7 @@ class CodeBlock(Block):
 @dataclass
 class RawBlock(Block):
     """Raw block"""
+
     format: str = field(default_factory=str)
     text: str = field(default_factory=str)
 
@@ -432,51 +598,39 @@ class RawBlock(Block):
 @dataclass
 class BlockQuote(Block):
     """Block quote (list of blocks)"""
+
     blocks: List[Block] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        blocks = list()
-        for e_block in e:
-            blocks.append(parse_block(e_block))
-        return cls(blocks)
+        return cls(parse_blocks(e))
 
 
 @dataclass
 class OrderedList(Block):
     """Ordered list (attributes and a list of items, each a list of blocks)"""
+
     list_attributes: ListAttributes = field(default_factory=ListAttributes)
     blockss: List[List[Block]] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         list_attributes = ListAttributes.parse_object(e[0])
-        blockss = list()
-        for e_blocks in e[1]:
-            blocks = list()
-            for e_block in e_blocks:
-                blocks.append(parse_block(e_block))
-            blockss.append(blocks)
+        blockss = parse_blockss(e[1])
         return cls(list_attributes, blockss)
 
 
 @dataclass
 class BulletList(Block):
     """Bullet list (list of items, each a list of blocks)"""
+
     blockss: List[List[Block]] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        blockss = list()
-        for e_blocks in e:
-            blocks = list()
-            for e_block in e_blocks:
-                blocks.append(parse_block(e_block))
-            blockss.append(blocks)
-        return cls(blockss)
+        return cls(parse_blockss(e))
 
 
 @dataclass
@@ -486,31 +640,19 @@ class DefinitionList(Block):
     Each list item is a pair consisting of a term (a list of inlines)
     and one or more definitions (each a list of blocks)
     """
+
     items: List[Tuple[List[Inline], List[List[Block]]]] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
-        items = list()
-        for e_item in e:
-            inlines = list()
-            for e_inline in e_item[0]:
-                inlines.append(parse_inline(e_inline))
-
-            blockss = list()
-            for e_blocks in e_item[1]:
-                blocks = list()
-                for e_block in e_blocks:
-                    blocks.append(parse_block(e_block))
-                blockss.append(blocks)
-
-            items.append((inlines, blockss))
-        return cls(items)
+        return cls([(parse_inlines(i), parse_blockss(b)) for i, b in e])
 
 
 @dataclass
 class Header(Block):
     """Header - level (integer) and text (inlines)"""
+
     level: int = 0
     attr: Attr = field(default_factory=Attr)
     inlines: List[Inline] = field(default_factory=list)
@@ -518,12 +660,11 @@ class Header(Block):
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 3
         level = e[0]
         assert isinstance(level, int)
         attr = Attr.parse_object(e[1])
-        inlines = list()
-        for e_inline in e[2]:
-            inlines.append(parse_inline(e_inline))
+        inlines = parse_inlines(e[2])
         return cls(level, attr, inlines)
 
 
@@ -540,77 +681,122 @@ class HorizontalRule(Block):
 @dataclass
 class ShortCaption:
     """A short caption, for use in, for instance, lists of figures."""
+
     inlines: List[Inline] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
-        assert isinstance(e, list)
-        inlines = list()
-        for e_inline in e:
-            inlines.append(parse_inline(e_inline))
-        return cls(inlines)
+        return cls(parse_inlines(e))
 
 
 @dataclass
 class Caption:
     """The caption of a table or figure, with optional short caption."""
+
     short_caption: Optional[ShortCaption] = None
     blocks: List[Block] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         short_caption = e[0]
         assert isinstance(short_caption, (type(None), list))
-        blocks = list()
-        for e_block in e[1]:
-            blocks.append(parse_block(e_block))
+        blocks = parse_blocks(e[1])
         return cls(short_caption, blocks)
+
+
+class ColWidth(float):
+    """The width of a table column, as a percentage of the text width."""
+
+    DEFAULT: Final[float] = 0.0
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, dict)
+        if e["t"] == "ColWidthDefault":
+            return cls(0.0)
+        elif e["t"] == "ColWidth":
+            assert isinstance(e["c"], float)
+            return cls(e["c"])
+        else:
+            raise ValueError(f"Unexpected element type: {e}")
+
+    @property
+    def is_default(self):
+        return self == self.DEFAULT
 
 
 @dataclass
 class ColSpec:
     """The specification for a single table column."""
+
     alignment: Alignment = Alignment.AlignDefault
-    col_width: float = 0.0
+    col_width: ColWidth = field(default_factory=ColWidth)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
         assert len(e) == 2
-        alignment = Alignment(e[0])
-        col_width = e[1]
-        assert isinstance(col_width, float)
+        alignment = Alignment.parse_object(e[0])
+        col_width = ColWidth.parse_object(e[1])
         return cls(alignment, col_width)
+
+    @classmethod
+    def parse_object_with_list(cls, e):
+        assert isinstance(e, list)
+        return list(cls.parse_object(item) for item in e)
+
+
+class RowSpan(int):
+    """The number of rows occupied by a cell; the height of a cell."""
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, int)
+        return cls(e)
+
+
+class ColSpan(int):
+    """The number of columns occupied by a cell; the width of a cell."""
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, int)
+        return cls(e)
 
 
 @dataclass
 class Cell:
     """A table cell."""
+
     attr: Attr = field(default_factory=Attr)
     alignment: Alignment = Alignment.AlignDefault
-    row_span: int = 0
-    col_span: int = 0
+    row_span: RowSpan = field(default_factory=RowSpan)
+    col_span: ColSpan = field(default_factory=ColSpan)
     blocks: List[Block] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 5
         attr = Attr.parse_object(e[0])
-        alignment = Alignment(e[1])
-        row_span = e[2]
-        col_span = e[3]
-        assert isinstance(row_span, int)
-        assert isinstance(col_span, int)
-        blocks = list()
-        for e_block in e[4]:
-            blocks.append(parse_block(e_block))
+        alignment = Alignment.parse_object(e[1])
+        row_span = RowSpan.parse_object(e[2])
+        col_span = ColSpan.parse_object(e[3])
+        blocks = parse_blocks(e[4])
         return cls(attr, alignment, row_span, col_span, blocks)
+
+    @classmethod
+    def parse_object_with_list(cls, e):
+        assert isinstance(e, list)
+        return list(cls.parse_object(item) for item in e)
 
 
 @dataclass
 class Row:
     """A table row."""
+
     attr: Attr = field(default_factory=Attr)
     cells: List[Cell] = field(default_factory=list)
 
@@ -619,26 +805,41 @@ class Row:
         assert isinstance(e, list)
         assert len(e) == 2
         attr = Attr.parse_object(e[0])
-        cells = list()
-        for e_cell in e[1]:
-            cells.append(Cell.parse_object(e_cell))
+        cells = Cell.parse_object_with_list(e[1])
         return cls(attr, cells)
+
+    @classmethod
+    def parse_object_with_list(cls, e):
+        assert isinstance(e, list)
+        return list(cls.parse_object(item) for item in e)
 
 
 @dataclass
 class TableHead:
     """The head of a table."""
+
     attr: Attr = field(default_factory=Attr)
     rows: List[Row] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         attr = Attr.parse_object(e[0])
-        rows = list()
-        for e_row in e[1]:
-            rows.append(Row.parse_object(e_row))
+        rows = Row.parse_object_with_list(e[1])
         return cls(attr, rows)
+
+
+class RowHeadColumns(int):
+    """
+    The number of columns taken up by the row head of each row of a TableBody.
+    The row body takes up the remaining columns.
+    """
+
+    @classmethod
+    def parse_object(cls, e):
+        assert isinstance(e, int)
+        return cls(e)
 
 
 @dataclass
@@ -646,10 +847,14 @@ class TableBody:
     """
     A body of a table, with an intermediate head, intermediate body,
     and the specified number of row header columns in the intermediate body.
+
+    Warning:
+        The <thead>, <tbody>, <tfoot>, <colgroup>, and <col> elements are currently not
+        supported in MediaWiki
     """
 
     attr: Attr = field(default_factory=Attr)
-    row_head_columns: int = 0
+    row_head_columns: RowHeadColumns = field(default_factory=RowHeadColumns)
     header_rows: List[Row] = field(default_factory=list)
     body_rows: List[Row] = field(default_factory=list)
 
@@ -658,30 +863,30 @@ class TableBody:
         assert isinstance(e, list)
         assert len(e) == 4
         attr = Attr.parse_object(e[0])
-        row_head_columns = e[1]
-        assert isinstance(row_head_columns, int)
-        header_rows = list()
-        for e_row in e[1]:
-            header_rows.append(Row.parse_object(e_row))
-        body_rows = list()
-        for e_row in e[1]:
-            body_rows.append(Row.parse_object(e_row))
+        row_head_columns = RowHeadColumns.parse_object(e[1])
+        header_rows = Row.parse_object_with_list(e[2])
+        body_rows = Row.parse_object_with_list(e[3])
         return cls(attr, row_head_columns, header_rows, body_rows)
+
+    @classmethod
+    def parse_object_with_list(cls, e):
+        assert isinstance(e, list)
+        return list(cls.parse_object(item) for item in e)
 
 
 @dataclass
 class TableFoot:
     """The foot of a table."""
+
     attr: Attr = field(default_factory=Attr)
     rows: List[Row] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         attr = Attr.parse_object(e[0])
-        rows = list()
-        for e_row in e[1]:
-            rows.append(Row.parse_object(e_row))
+        rows = Row.parse_object_with_list(e[1])
         return cls(attr, rows)
 
 
@@ -691,6 +896,7 @@ class Table(Block):
     Table, with attributes, caption, optional short caption, column alignments and
     widths (required), table head, table bodies, and table foot
     """
+
     attr: Attr = field(default_factory=Attr)
     caption: Caption = field(default_factory=Caption)
     col_specs: List[ColSpec] = field(default_factory=list)
@@ -701,15 +907,12 @@ class Table(Block):
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 6
         attr = Attr.parse_object(e[0])
         caption = Caption.parse_object(e[1])
-        col_specs = list()
-        for e_col_spec in e[2]:
-            col_specs.append(ColSpec.parse_object(e_col_spec))
+        col_specs = ColSpec.parse_object_with_list(e[2])
         table_head = TableHead.parse_object(e[3])
-        table_body = list()
-        for e_table_body in e[4]:
-            table_body.append(TableBody.parse_object(e_table_body))
+        table_body = TableBody.parse_object_with_list(e[4])
         table_foot = TableFoot.parse_object(e[5])
         return cls(attr, caption, col_specs, table_head, table_body, table_foot)
 
@@ -717,6 +920,7 @@ class Table(Block):
 @dataclass
 class Figure(Block):
     """Figure, with attributes, caption, and content (list of blocks)"""
+
     attr: Attr = field(default_factory=Attr)
     caption: Caption = field(default_factory=Caption)
     blocks: List[Block] = field(default_factory=list)
@@ -724,27 +928,26 @@ class Figure(Block):
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 3
         attr = Attr.parse_object(e[0])
         caption = Caption.parse_object(e[1])
-        blocks = list()
-        for e_block in e[2]:
-            blocks.append(parse_block(e_block))
+        blocks = parse_blocks(e[2])
         return cls(attr, caption, blocks)
 
 
 @dataclass
 class Div(Block):
     """Generic block container with attributes"""
+
     attr: Attr = field(default_factory=Attr)
     blocks: List[Block] = field(default_factory=list)
 
     @classmethod
     def parse_object(cls, e):
         assert isinstance(e, list)
+        assert len(e) == 2
         attr = Attr.parse_object(e[0])
-        blocks = list()
-        for e_block in e[1]:
-            blocks.append(parse_block(e_block))
+        blocks = parse_blocks(e[1])
         return cls(attr, blocks)
 
 
@@ -784,6 +987,16 @@ def parse_block(e) -> Block:
             return Div.parse_object(e_content)
         case _:
             raise ValueError(f"Unexpected block type: {e_type}")
+
+
+def parse_blocks(e):
+    assert isinstance(e, list)
+    return list(parse_block(item) for item in e)
+
+
+def parse_blockss(e):
+    assert isinstance(e, list)
+    return list(parse_blocks(item) for item in e)
 
 
 @dataclass
@@ -826,194 +1039,3 @@ class Pandoc:
                 blocks.append(parse_block(block))
 
         return cls(pandoc_api_version, meta, blocks)
-
-    # ----------------------------------------------------------------------------------
-    # Block elements.
-    # ----------------------------------------------------------------------------------
-
-    def on_alignment(self, e):
-        """Alignment of a table column."""
-        assert self
-        assert isinstance(e, str)
-        # AlignLeft
-        # AlignRight
-        # AlignCenter
-        # AlignDefault
-        return e
-
-    def on_table_body(self, e):
-        """
-        A body of a table, with an intermediate head, intermediate body,
-        and the specified number of row header columns in the intermediate body.
-        """
-        assert isinstance(e, dict)
-        self.on_attr(e[0])
-        row_head_columns = e[1]
-        assert isinstance(row_head_columns, int)
-        for row in e[2]:
-            self.on_row(row)
-        for row in e[3]:
-            self.on_row(row)
-        assert self
-        return e
-
-    def on_row(self, e):
-        """A table row."""
-        self.on_attr(e[0])
-        for cell in e[1]:
-            self.on_cell(cell)
-        return e
-
-    def on_cell(self, e):
-        """A table cell."""
-        self.on_attr(e[0])
-        self.on_alignment(e[1])
-        row_span = e[2]
-        col_span = e[3]
-        assert isinstance(row_span, int)
-        assert isinstance(col_span, int)
-        for block in e[4]:
-            self.on_block(block)
-        return e
-
-    # ----------------------------------------------------------------------------------
-    # Inline elements.
-    # ----------------------------------------------------------------------------------
-
-    def on_emph(self, e):
-        """Emphasized text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_underline(self, e):
-        """Underlined text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_strong(self, e):
-        """Strongly emphasized text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_strikeout(self, e):
-        """Strikeout text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_superscript(self, e):
-        """Superscripted text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_subscript(self, e):
-        """Subscripted text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_small_caps(self, e):
-        """Small caps text (list of inlines)"""
-        assert isinstance(e, list)
-        for inline in e[0]:
-            self.on_inline(inline)
-        return e
-
-    def on_quoted(self, e):
-        """Quoted text (list of inlines)"""
-        assert isinstance(e, list)
-        self.on_quote_type(e[0])
-        for inline in e[1]:
-            self.on_inline(inline)
-        return e
-
-    def on_cite(self, e):
-        """Citation (list of inlines)"""
-        assert isinstance(e, list)
-        for citation in e[0]:
-            self.on_citation(citation)
-        for inline in e[1]:
-            self.on_inline(inline)
-        return e
-
-    def on_code(self, e):
-        """Inline code (literal)"""
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        text = e[1]
-        assert isinstance(text, str)
-        return e
-
-    def on_soft_break(self, e):
-        """Soft line break"""
-        assert self
-        return e
-
-    def on_line_break(self, e):
-        """Hard line break"""
-        assert self
-        return e
-
-    def on_math(self, e):
-        """TeX's math (literal)"""
-        assert isinstance(e, list)
-        self.on_math_type(e[0])
-        text = e[1]
-        assert isinstance(text, str)
-        return e
-
-    def on_raw_inline(self, e):
-        """Raw inline"""
-        assert self
-        assert isinstance(e, list)
-        format_ = e[0]
-        assert isinstance(format_, str)
-        text = e[1]
-        assert isinstance(text, str)
-        return e
-
-    def on_note(self, e):
-        """Footnote or endnote"""
-        assert isinstance(e, list)
-        for block in e[0]:
-            self.on_block(block)
-        return e
-
-    def on_span(self, e):
-        """Generic inline container with attributes"""
-        assert isinstance(e, list)
-        self.on_attr(e[0])
-        for inline in e[1]:
-            self.on_inline(inline)
-
-    # ----------------------------------------------------------------------------------
-    # Common elements.
-    # ----------------------------------------------------------------------------------
-
-    def on_citation(self, e):
-        assert self
-        return e
-
-    def on_quote_type(self, e):
-        """Type of quotation marks to use in Quoted inline."""
-        assert self
-        # SingleQuote
-        # DoubleQuote
-        return e
-
-    def on_math_type(self, e):
-        """Type of math element (display or inline)."""
-        assert self
-        # DisplayMath
-        # InlineMath
-        return e
