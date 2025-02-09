@@ -2,7 +2,7 @@
 
 from copy import copy
 from io import StringIO
-from typing import Callable, Dict, Optional, Type
+from typing import Callable, Dict, Optional, Sequence, Type
 
 from mwfilter.mw.page_meta import PageMeta
 
@@ -310,6 +310,42 @@ class PandocToMarkdownDumper(DumperInterface):
     # Inlines
     # ----------------------------------------------------------------------------------
 
+    def dump_inlines(self, inlines: Sequence[Inline]) -> str:
+        buffer = StringIO()
+        for inline in inlines:
+            buffer.write(self.on_inline(inline))
+        return buffer.getvalue()
+
+    def dump_inlines_quote(
+        self,
+        inlines: Sequence[Inline],
+        begin: str,
+        end: Optional[str] = None,
+    ) -> str:
+        buffer = StringIO()
+        buffer.write(begin)
+        buffer.write(self.dump_inlines(inlines))
+        buffer.write(end if end else begin)
+        return buffer.getvalue()
+
+    def dump_inlines_tag_quote(
+        self,
+        tag: str,
+        inlines: Sequence[Inline],
+        **kwargs: str,
+    ) -> str:
+        buffer = StringIO()
+        buffer.write(f"<{tag}")
+        if kwargs:
+            for k, v in kwargs.items():
+                buffer.write(f' {k}="{v}"')
+        buffer.write(">")
+        return self.dump_inlines_quote(
+            inlines=inlines,
+            begin=buffer.getvalue(),
+            end=f"</{tag}>",
+        )
+
     @override
     def on_inline(self, e: Inline) -> str:
         if callback := self._inlines.get(type(e)):
@@ -340,15 +376,14 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_line_break(self, e: LineBreak) -> str:
-        return "\n\n"
+        return "<br>"
 
     @override
     def on_link(self, e: Link) -> str:
         buffer = StringIO()
         # attr = e.attr  # TODO
         buffer.write("[")
-        for inline in e.inlines:
-            buffer.write(self.on_inline(inline))
+        buffer.write(self.dump_inlines(e.inlines))
         link = e.target.as_markdown_link(no_abspath=self._no_abspath)
         buffer.write(f"]({link})")
         return buffer.getvalue()
@@ -385,10 +420,8 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_span(self, e: Span) -> str:
-        # TODO
-        # attr = e.attr
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        # attr = e.attr  # TODO
+        return self.dump_inlines_tag_quote("span", e.inlines)
 
     @override
     def on_str(self, e: Str) -> str:
@@ -396,28 +429,23 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_strikeout(self, e: Strikeout) -> str:
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        return self.dump_inlines_tag_quote("s", e.inlines)
 
     @override
     def on_strong(self, e: Strong) -> str:
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        return self.dump_inlines_tag_quote("strong", e.inlines)
 
     @override
     def on_subscript(self, e: Subscript) -> str:
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        return self.dump_inlines_tag_quote("sub", e.inlines)
 
     @override
     def on_superscript(self, e: Superscript) -> str:
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        return self.dump_inlines_tag_quote("sup", e.inlines)
 
     @override
     def on_underline(self, e: Underline) -> str:
-        # return self.dump_inlines(e.inlines)
-        raise NotImplementedError
+        return self.dump_inlines_tag_quote("u", e.inlines)
 
 
 def mediawiki_to_markdown(mediawiki_context: str) -> str:
