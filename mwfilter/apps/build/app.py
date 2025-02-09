@@ -159,9 +159,9 @@ class BuildApp:
             markdown_text = info.as_markdown(self._method_version)
 
             if not self._yes and self._debug and 2 <= self._verbose:
-                hr = "*" * 88
-                print(f"{hr}\nMediaWiki content:\n{info.text}\n{hr}\n")
-                print(f"{hr}\nMarkdown content:\n{markdown_text}\n{hr}\n")
+                hr = "-" * 88
+                print(f"{hr}\nMediaWiki content:\n{info.text}\n{hr}")
+                print(f"{hr}\nMarkdown content:\n{markdown_text}\n{hr}")
                 if not ask_continue():
                     continue
 

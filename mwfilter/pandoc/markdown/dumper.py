@@ -2,7 +2,7 @@
 
 from copy import copy
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, Type
+from typing import Callable, Dict, Optional, Type
 
 from mwfilter.mw.page_meta import PageMeta
 
@@ -46,18 +46,41 @@ from mwfilter.pandoc.ast.inlines.subscript import Subscript
 from mwfilter.pandoc.ast.inlines.superscript import Superscript
 from mwfilter.pandoc.ast.inlines.underline import Underline
 
-# AST
+# AST: ETC
+from mwfilter.pandoc.ast.interface import DumperInterface
+
+# AST: Metas
+from mwfilter.pandoc.ast.metas.meta import Meta
+from mwfilter.pandoc.ast.metas.meta_blocks import MetaBlocks
+from mwfilter.pandoc.ast.metas.meta_bool import MetaBool
+from mwfilter.pandoc.ast.metas.meta_inlines import MetaInlines
+from mwfilter.pandoc.ast.metas.meta_list import MetaList
+from mwfilter.pandoc.ast.metas.meta_map import MetaMap
+from mwfilter.pandoc.ast.metas.meta_string import MetaString
+from mwfilter.pandoc.ast.metas.meta_value import MetaValue
 from mwfilter.pandoc.ast.pandoc import Pandoc
+from mwfilter.types.override import override
 
 
-class PandocToMarkdownDumper:
-    _block_map: Dict[Type[Block], Callable[[Block], None]]
-    _inline_map: Dict[Type[Inline], Callable[[Inline], None]]
+class PandocToMarkdownDumper(DumperInterface):
+    _metas: Dict[Type[MetaValue], Callable[[MetaValue], str]]
+    _blocks: Dict[Type[Block], Callable[[Block], str]]
+    _inlines: Dict[Type[Inline], Callable[[Inline], str]]
 
-    def __init__(self, no_yaml_frontmatter=False):
+    def __init__(self, *, no_abspath=False, no_yaml_frontmatter=False):
+        self._no_abspath = no_abspath
         self._no_yaml_frontmatter = no_yaml_frontmatter
-        self._buffer = StringIO()
-        self._block_map = {
+        self._bullet_level = 0
+        self._meta_level = 0
+        self._metas = {
+            MetaBlocks: self.on_meta_blocks,
+            MetaBool: self.on_meta_bool,
+            MetaInlines: self.on_meta_inlines,
+            MetaList: self.on_meta_list,
+            MetaMap: self.on_meta_map,
+            MetaString: self.on_meta_string,
+        }
+        self._blocks = {
             BlockQuote: self.on_block_quote,
             BulletList: self.on_bullet_list,
             CodeBlock: self.on_code_block,
@@ -73,7 +96,7 @@ class PandocToMarkdownDumper:
             RawBlock: self.on_raw_block,
             Table: self.on_table,
         }
-        self._inline_map = {
+        self._inlines = {
             Cite: self.on_cite,
             Code: self.on_code,
             Emph: self.on_emph,
@@ -88,7 +111,7 @@ class PandocToMarkdownDumper:
             SoftBreak: self.on_soft_break,
             Space: self.on_space,
             Span: self.on_span,
-            Str: self.on_str_,
+            Str: self.on_str,
             Strikeout: self.on_strikeout,
             Strong: self.on_strong,
             Subscript: self.on_subscript,
@@ -98,159 +121,303 @@ class PandocToMarkdownDumper:
 
     @staticmethod
     def update_page_meta(pandoc: Pandoc, meta: PageMeta):
-        pandoc.meta["title"] = {"t": "Str", "c": meta.name}
-        pandoc.meta["date"] = {"t": "Str", "c": meta.date}
-        alias = list()
-        for a in meta.alias:
-            alias.append({"t": "Str", "c": a})
-        pandoc.meta["alias"] = {"t": "List", "c": alias}
+        if meta.name:
+            pandoc.meta["title"] = MetaString(meta.name)
+        if meta.date:
+            pandoc.meta["date"] = MetaString(meta.date)
+        if meta.alias:
+            pandoc.meta["alias"] = MetaList(list(MetaString(a) for a in meta.alias))
 
     def dump(self, pandoc: Pandoc, meta: Optional[PageMeta] = None) -> str:
         if meta is not None:
             pandoc = copy(pandoc)
             self.update_page_meta(pandoc, meta)
-        self.on_pandoc(pandoc)
-        return self._buffer.getvalue()
+        return self.on_pandoc(pandoc)
 
-    def on_pandoc(self, e: Pandoc) -> None:
-        self.on_meta(e.meta)
+    @override
+    def on_pandoc(self, e: Pandoc) -> str:
+        buffer = StringIO()
+        if not self._no_yaml_frontmatter:
+            buffer.write(self.on_meta(e.meta))
         for block in e.blocks:
-            self.on_block(block)
+            text = self.on_block(block)
+            buffer.write(text)
+        return buffer.getvalue()
 
-    def on_meta(self, e: Dict[str, Any]) -> None:
-        # buffer = StringIO()
-        # buffer.write("---\n")
-        # buffer.write(f"title: {self.name}\n")
-        # buffer.write(f"date: {self.date}\n")
-        # if self.meta.alias:
-        #     buffer.write("alias:\n")
-        #     for alias in self.meta.alias:
-        #         buffer.write(f"  - {alias}\n")
-        # buffer.write("---\n")
-        # buffer.write("\n")
-        pass
+    # ----------------------------------------------------------------------------------
+    # Metas
+    # ----------------------------------------------------------------------------------
+
+    @override
+    def on_meta(self, e: Meta) -> str:
+        if not e:
+            return ""
+        buffer = StringIO()
+        buffer.write("---\n")
+        for key, value in e.items():
+            buffer.write(f"{key}: {self.on_meta_value(value)}\n")
+        buffer.write("---\n\n")
+        return buffer.getvalue()
+
+    @override
+    def on_meta_value(self, e: MetaValue) -> str:
+        if callback := self._metas.get(type(e)):
+            return callback(e)
+        else:
+            raise TypeError(f"Unsupported block type: {type(e).__name__}")
+
+    @override
+    def on_meta_blocks(self, e: MetaBlocks) -> str:
+        raise NotImplementedError
+
+    @override
+    def on_meta_bool(self, e: MetaBool) -> str:
+        return "true" if e.content else "false"
+
+    @override
+    def on_meta_inlines(self, e: MetaInlines) -> str:
+        raise NotImplementedError
+
+    @override
+    def on_meta_list(self, e: MetaList) -> str:
+        self._meta_level += 1
+        try:
+            buffer = StringIO()
+            for content in e.content:
+                buffer.write(" " * (self._bullet_level - 1))
+                buffer.write("- ")
+                buffer.write(self.on_meta_value(content))
+                buffer.write("\n")
+            buffer.write("\n")
+            return buffer.getvalue()
+        finally:
+            self._meta_level -= 1
+
+    @override
+    def on_meta_map(self, e: MetaMap) -> str:
+        raise NotImplementedError
+
+    @override
+    def on_meta_string(self, e: MetaString) -> str:
+        return e.content
 
     # ----------------------------------------------------------------------------------
     # Blocks
     # ----------------------------------------------------------------------------------
 
-    def on_block(self, e: Block) -> None:
-        if callback := self._block_map.get(type(e)):
-            callback(e)
+    @override
+    def on_block(self, e: Block) -> str:
+        if callback := self._blocks.get(type(e)):
+            return callback(e)
         else:
             raise TypeError(f"Unsupported block type: {type(e).__name__}")
 
-    def on_block_quote(self, e: BlockQuote) -> None:
-        pass
+    @override
+    def on_block_quote(self, e: BlockQuote) -> str:
+        buffer = StringIO()
+        for block in e.blocks:
+            text = self.on_block(block)
+            buffer.write("> ")
+            buffer.write(text)
+        return buffer.getvalue()
 
-    def on_bullet_list(self, e: BulletList) -> None:
-        pass
+    @override
+    def on_bullet_list(self, e: BulletList) -> str:
+        self._bullet_level += 1
+        try:
+            buffer = StringIO()
+            for blocks in e.blockss:
+                buffer.write(" " * (self._bullet_level - 1))
+                buffer.write("* ")
+                try:
+                    for block in blocks:
+                        text = self.on_block(block)
+                        buffer.write(text.strip())
+                finally:
+                    buffer.write("\n")
+            buffer.write("\n")
+            return buffer.getvalue()
+        finally:
+            self._bullet_level -= 1
 
-    def on_code_block(self, e: CodeBlock) -> None:
-        pass
+    @override
+    def on_code_block(self, e: CodeBlock) -> str:
+        raise NotImplementedError
 
-    def on_definition_list(self, e: DefinitionList) -> None:
-        pass
+    @override
+    def on_definition_list(self, e: DefinitionList) -> str:
+        raise NotImplementedError
 
-    def on_div(self, e: Div) -> None:
-        pass
+    @override
+    def on_div(self, e: Div) -> str:
+        raise NotImplementedError
 
-    def on_figure(self, e: Figure) -> None:
-        pass
+    @override
+    def on_figure(self, e: Figure) -> str:
+        raise NotImplementedError
 
-    def on_header(self, e: Header) -> None:
-        pass
+    @override
+    def on_header(self, e: Header) -> str:
+        # TODO
+        # attr = e.attr
+        buffer = StringIO()
+        assert 1 <= e.level
+        buffer.write("#" * e.level)
+        buffer.write(" ")
+        for inline in e.inlines:
+            buffer.write(self.on_inline(inline))
+        buffer.write("\n")
+        return buffer.getvalue()
 
-    def on_horizontal_rule(self, e: HorizontalRule) -> None:
-        pass
+    @override
+    def on_horizontal_rule(self, e: HorizontalRule) -> str:
+        return "---\n"
 
-    def on_line_block(self, e: LineBlock) -> None:
-        pass
+    @override
+    def on_line_block(self, e: LineBlock) -> str:
+        # return self.dump_inliness(e.inliness)
+        raise NotImplementedError
 
-    def on_ordered_list(self, e: OrderedList) -> None:
-        pass
+    @override
+    def on_ordered_list(self, e: OrderedList) -> str:
+        raise NotImplementedError
 
-    def on_para(self, e: Para) -> None:
-        pass
+    @override
+    def on_para(self, e: Para) -> str:
+        buffer = StringIO()
+        for inline in e.inlines:
+            buffer.write(self.on_inline(inline))
+        buffer.write("\n\n")
+        return buffer.getvalue()
 
-    def on_plain(self, e: Plain) -> None:
-        pass
+    @override
+    def on_plain(self, e: Plain) -> str:
+        buffer = StringIO()
+        for inline in e.inlines:
+            buffer.write(self.on_inline(inline))
+        buffer.write("\n")
+        return buffer.getvalue()
 
-    def on_raw_block(self, e: RawBlock) -> None:
-        pass
+    @override
+    def on_raw_block(self, e: RawBlock) -> str:
+        raise NotImplementedError
 
-    def on_table(self, e: Table) -> None:
-        pass
+    @override
+    def on_table(self, e: Table) -> str:
+        raise NotImplementedError
 
     # ----------------------------------------------------------------------------------
     # Inlines
     # ----------------------------------------------------------------------------------
 
-    def on_inline(self, e: Inline) -> None:
-        if callback := self._inline_map.get(type(e)):
-            callback(e)
+    @override
+    def on_inline(self, e: Inline) -> str:
+        if callback := self._inlines.get(type(e)):
+            return callback(e)
         else:
             raise TypeError(f"Unsupported inline type: {type(e).__name__}")
 
-    def on_cite(self, e: Cite) -> None:
-        pass
+    @override
+    def on_cite(self, e: Cite) -> str:
+        raise NotImplementedError
 
-    def on_code(self, e: Code) -> None:
-        pass
+    @override
+    def on_code(self, e: Code) -> str:
+        raise NotImplementedError
 
-    def on_emph(self, e: Emph) -> None:
-        pass
+    @override
+    def on_emph(self, e: Emph) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_image(self, e: Image) -> None:
-        pass
+    @override
+    def on_image(self, e: Image) -> str:
+        # TODO
+        # attr = e.attr
+        # target = e.target
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_line_break(self, e: LineBreak) -> None:
-        pass
+    @override
+    def on_line_break(self, e: LineBreak) -> str:
+        return "\n\n"
 
-    def on_link(self, e: Link) -> None:
-        pass
+    @override
+    def on_link(self, e: Link) -> str:
+        buffer = StringIO()
+        # attr = e.attr  # TODO
+        buffer.write("[")
+        for inline in e.inlines:
+            buffer.write(self.on_inline(inline))
+        link = e.target.as_markdown_link(no_abspath=self._no_abspath)
+        buffer.write(f"]({link})")
+        return buffer.getvalue()
 
-    def on_math(self, e: Math) -> None:
-        pass
+    @override
+    def on_math(self, e: Math) -> str:
+        raise NotImplementedError
 
-    def on_note(self, e: Note) -> None:
-        pass
+    @override
+    def on_note(self, e: Note) -> str:
+        raise NotImplementedError
 
-    def on_quoted(self, e: Quoted) -> None:
-        pass
+    @override
+    def on_quoted(self, e: Quoted) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_raw_inline(self, e: RawInline) -> None:
-        pass
+    @override
+    def on_raw_inline(self, e: RawInline) -> str:
+        raise NotImplementedError
 
-    def on_small_caps(self, e: SmallCaps) -> None:
-        pass
+    @override
+    def on_small_caps(self, e: SmallCaps) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_soft_break(self, e: SoftBreak) -> None:
-        pass
+    @override
+    def on_soft_break(self, e: SoftBreak) -> str:
+        return "\n"
 
-    def on_space(self, e: Space) -> None:
-        pass
+    @override
+    def on_space(self, e: Space) -> str:
+        return " "
 
-    def on_span(self, e: Span) -> None:
-        pass
+    @override
+    def on_span(self, e: Span) -> str:
+        # TODO
+        # attr = e.attr
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_str_(self, e: Str) -> None:
-        pass
+    @override
+    def on_str(self, e: Str) -> str:
+        return e.text
 
-    def on_strikeout(self, e: Strikeout) -> None:
-        pass
+    @override
+    def on_strikeout(self, e: Strikeout) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_strong(self, e: Strong) -> None:
-        pass
+    @override
+    def on_strong(self, e: Strong) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_subscript(self, e: Subscript) -> None:
-        pass
+    @override
+    def on_subscript(self, e: Subscript) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_superscript(self, e: Superscript) -> None:
-        pass
+    @override
+    def on_superscript(self, e: Superscript) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
-    def on_underline(self, e: Underline) -> None:
-        pass
+    @override
+    def on_underline(self, e: Underline) -> str:
+        # return self.dump_inlines(e.inlines)
+        raise NotImplementedError
 
 
 def mediawiki_to_markdown(mediawiki_context: str) -> str:
