@@ -67,6 +67,10 @@ class PageMeta:
         return self.page_name.removeprefix("/").replace(" ", "_")
 
     @property
+    def date(self):
+        return self.touched.date().isoformat()
+
+    @property
     def json_filename(self) -> str:
         return self.filename + ".json"
 
