@@ -15,3 +15,6 @@ class MetaBlocks(MetaValue[List[Block]]):
     @classmethod
     def parse_object(cls, e):
         return cls(parse_blocks(e))
+
+    def serialize(self):
+        return list(str(b) for b in self.content)

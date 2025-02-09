@@ -13,3 +13,6 @@ class MetaBool(MetaValue[bool]):
     def parse_object(cls, e):
         assert isinstance(e, bool)
         return cls(e)
+
+    def serialize(self):
+        return self.content

@@ -11,3 +11,6 @@ class Meta(Dict[str, MetaValue]):
     def parse_object(cls, e):
         assert isinstance(e, dict)
         return cls({k: parse_meta_value(v) for k, v in e.items()})
+
+    def serialize(self):
+        return {k: v.serialize() for k, v in self.items()}

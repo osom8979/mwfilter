@@ -13,3 +13,6 @@ class MetaString(MetaValue[str]):
     def parse_object(cls, e):
         assert isinstance(e, str)
         return cls(e)
+
+    def serialize(self):
+        return self.content

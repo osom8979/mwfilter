@@ -10,5 +10,6 @@ class MetaValue[_T](Protocol):
     content: _T
 
     @classmethod
-    def parse_object(cls, e):
-        pass
+    def parse_object(cls, e): ...
+
+    def serialize(self): ...

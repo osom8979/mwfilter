@@ -15,3 +15,6 @@ class MetaList(MetaValue[List[MetaValue]]):
     def parse_object(cls, e):
         assert isinstance(e, list)
         return cls(list(parse_meta_value(item) for item in e))
+
+    def serialize(self):
+        return list(v.serialize() for v in self.content)

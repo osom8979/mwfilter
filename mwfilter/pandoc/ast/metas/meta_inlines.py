@@ -15,3 +15,6 @@ class MetaInlines(MetaValue[List[Inline]]):
     @classmethod
     def parse_object(cls, e):
         return cls(parse_inlines(e))
+
+    def serialize(self):
+        return list(str(i) for i in self.content)
