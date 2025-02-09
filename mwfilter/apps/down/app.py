@@ -35,6 +35,7 @@ class DownApp:
         assert isinstance(args.namespace, int)
         assert isinstance(args.no_expand_templates, bool)
         assert isinstance(args.export_settings, bool)
+        assert isinstance(args.index_page_name, str)
         assert isinstance(args.settings_page_name, str)
         assert isinstance(args.all, bool)
         assert isinstance(args.pages, list)
@@ -48,6 +49,7 @@ class DownApp:
         self._namespace = args.namespace
         self._no_expand_templates = args.no_expand_templates
         self._export_settings = args.export_settings
+        self._index_page_name = args.index_page_name
         self._settings_page_name = args.settings_page_name
         self._all = args.all
         self._pages = list(str(page_name) for page_name in args.pages)

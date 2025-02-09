@@ -19,3 +19,16 @@ def ask_overwrite(file: Path, *, force_yes=False) -> bool:
         return False
     else:
         raise FileExistsError(f"Already exists file: '{str(file)}'")
+
+
+def ask_continue(*, force_yes=False) -> bool:
+    if force_yes:
+        return True
+
+    answer = input("Continue? (Y/n/s): ").strip().lower()
+    if answer == "y":
+        return True
+    elif answer == "s":
+        return False
+    else:
+        raise InterruptedError

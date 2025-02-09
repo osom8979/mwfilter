@@ -8,12 +8,13 @@ from pathlib import Path
 import yaml
 from type_serialize import deserialize
 
+from mwfilter.arguments import METHOD_VERSIONS
 from mwfilter.logging.logging import logger
 from mwfilter.mw.cache_dirs import pages_cache_dirpath, settings_filepath
 from mwfilter.mw.convert_info import ConvertInfo
 from mwfilter.mw.settings import Settings
 from mwfilter.paths.expand_abspath import expand_abspath
-from mwfilter.system.ask import ask_overwrite
+from mwfilter.system.ask import ask_continue, ask_overwrite
 
 
 class BuildApp:
@@ -26,19 +27,28 @@ class BuildApp:
         # Common arguments
         assert isinstance(args.yes, bool)
         assert isinstance(args.ignore_errors, bool)
+        assert isinstance(args.debug, bool)
+        assert isinstance(args.verbose, int)
 
         # Subparser arguments
+        assert isinstance(args.method_version, int)
+        assert args.method_version in METHOD_VERSIONS
         assert isinstance(args.mkdocs_yml, str)
         assert isinstance(args.all, bool)
+        assert isinstance(args.dry_run, bool)
         assert isinstance(args.pages, list)
 
         self._hostname = args.hostname
         self._yes = args.yes
         self._ignore_errors = args.ignore_errors
+        self._debug = args.debug
+        self._verbose = args.verbose
+        self._method_version = args.method_version
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._settings_yml = settings_filepath(args.cache_dir, self._hostname)
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
         self._all = args.all
+        self._dry_run = args.dry_run
         self._pages = list(str(page_name) for page_name in args.pages)
 
     @staticmethod
@@ -141,6 +151,21 @@ class BuildApp:
         for i, info in enumerate(source_infos.values(), start=1):
             logger.info(f"Convert ({i}/{source_count}): {info.filename}")
             markdown_path = docs_dirpath / info.markdown_filename
-            if ask_overwrite(markdown_path, force_yes=self._yes):
-                markdown_path.parent.mkdir(parents=True, exist_ok=True)
-                markdown_path.write_text(info.as_markdown())
+
+            if not ask_overwrite(markdown_path, force_yes=self._yes):
+                continue
+
+            markdown_path.parent.mkdir(parents=True, exist_ok=True)
+            markdown_text = info.as_markdown(self._method_version)
+
+            if not self._yes and self._debug and 2 <= self._verbose:
+                hr = "*" * 88
+                print(f"{hr}\nMediaWiki content:\n{info.text}\n{hr}\n")
+                print(f"{hr}\nMarkdown content:\n{markdown_text}\n{hr}\n")
+                if not ask_continue():
+                    continue
+
+            if self._dry_run:
+                continue
+
+            markdown_path.write_text(markdown_text)

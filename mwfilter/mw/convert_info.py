@@ -11,9 +11,11 @@ from re import compile as re_compile
 from pypandoc import convert_file
 from type_serialize import deserialize
 
+from mwfilter.arguments import DEFAULT_METHOD_VERSION
 from mwfilter.assets import get_markdown_filter_lua
 from mwfilter.mw.page_meta import PageMeta
-from mwfilter.pandoc.mediawiki.converter import mediawiki_to_markdown
+from mwfilter.pandoc.ast.pandoc import Pandoc
+from mwfilter.pandoc.markdown.dumper import PandocToMarkdownDumper
 
 REDIRECT_REGEX: Pattern[str] = re_compile(r"\s*#REDIRECT\s*\[\[(.*)]]")
 
@@ -83,7 +85,16 @@ class ConvertInfo:
         buffer.write("\n")
         return buffer.getvalue()
 
-    def as_markdown(self) -> str:
+    def as_markdown(self, version=DEFAULT_METHOD_VERSION) -> str:
+        match version:
+            case 1:
+                return self.as_markdown_v1()
+            case 2:
+                return self.as_markdown_v2()
+            case _:
+                raise ValueError(f"Unsupported method version: {version}")
+
+    def as_markdown_v1(self) -> str:
         return self.yaml_frontmatter + convert_file(
             self.text_path,
             to="markdown",
@@ -91,6 +102,8 @@ class ConvertInfo:
             filters=[get_markdown_filter_lua()],
         )
 
-    def as_markdown2(self) -> str:
+    def as_markdown_v2(self) -> str:
         with open(self.text_path, "rt") as f:
-            return self.yaml_frontmatter + mediawiki_to_markdown(f.read())
+            pandoc = Pandoc.parse_text(f.read())
+            dumper = PandocToMarkdownDumper()
+            return dumper.dump(pandoc, self.meta)

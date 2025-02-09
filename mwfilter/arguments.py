@@ -11,22 +11,6 @@ from mwfilter.system.environ import get_typed_environ_value as get_eval
 
 PROG: Final[str] = "mwfilter"
 DESCRIPTION: Final[str] = "MediaWiki Filter"
-EPILOG = f"""
-Apply general debugging options:
-  {PROG} -D ...
-
-Download all main pages:
-  {PROG} -y -D down -a
-
-Download all template pages:
-  {PROG} -y -D down -N 10 -a
-
-Download settings pages:
-  {PROG} -y -D down -E
-
-Build all wiki files:
-  {PROG} -y -D build
-"""
 
 CMD_DOWN: Final[str] = "down"
 CMD_DOWN_HELP: Final[str] = "Download MediaWiki pages"
@@ -58,15 +42,38 @@ CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
 CMD_CLEAN: Final[str] = "clean"
 CMD_CLEAN_HELP: Final[str] = "Clean cached files"
 
-CMDS: Final[Sequence[str]] = (CMD_DOWN, CMD_BUILD, CMD_CLEAN)
+EPILOG = f"""
+Apply general debugging options:
+  {PROG} -D ...
+
+Download all main pages:
+  {PROG} -y -D {CMD_DOWN} -a
+
+Download all template pages:
+  {PROG} -y -D {CMD_DOWN} -N 10 -a
+
+Download settings pages:
+  {PROG} -y -D {CMD_DOWN} -E
+
+Build all wiki files:
+  {PROG} -y -D {CMD_BUILD}
+
+Builds as version 2, including both debugging and preview modes:
+  {PROG} -D -v {CMD_BUILD} -a -m 2
+"""
+
+CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_CLEAN
+METHOD_VERSIONS: Final[Sequence[int]] = 1, 2
 
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
 DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
 DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
+DEFAULT_INDEX_PAGE_NAME: Final[str] = "Mwfilter:Index"
 DEFAULT_SETTINGS_PAGE_NAME: Final[str] = "Mwfilter:Settings"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
+DEFAULT_METHOD_VERSION: Final[int] = 1
 
 
 @lru_cache
@@ -152,6 +159,11 @@ def add_down_parser(subparsers) -> None:
         help="Export settings file.",
     )
     parser.add_argument(
+        "--index-page-name",
+        default=get_eval("INDEX_PAGE_NAME", DEFAULT_INDEX_PAGE_NAME),
+        help=f"The name of the index page. (default: '{DEFAULT_INDEX_PAGE_NAME}')",
+    )
+    parser.add_argument(
         "--settings-page-name",
         default=get_eval("SETTINGS_PAGE_NAME", DEFAULT_SETTINGS_PAGE_NAME),
         help=(
@@ -184,6 +196,15 @@ def add_build_parser(subparsers) -> None:
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
+        "--method-version",
+        "-m",
+        "-M",
+        type=int,
+        default=get_eval("METHOD_VERSION", DEFAULT_METHOD_VERSION),
+        choices=METHOD_VERSIONS,
+        help=f"Build method version number. (default: '{DEFAULT_METHOD_VERSION}')",
+    )
+    parser.add_argument(
         "--mkdocs-yml",
         default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
         help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
@@ -195,6 +216,12 @@ def add_build_parser(subparsers) -> None:
         action="store_true",
         default=False,
         help="Build all cache files and directories.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Don't actually do anything, just show what would be done.",
     )
     parser.add_argument(
         "pages",
