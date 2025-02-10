@@ -46,7 +46,6 @@ class Target:
             assert len(link_items) == 2
             link = link_items[0]
             anchor = link_items[1]
-            assert anchor.startswith("#")
 
         buffer = StringIO()
         if not no_abspath:

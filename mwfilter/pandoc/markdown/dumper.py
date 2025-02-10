@@ -2,7 +2,7 @@
 
 from copy import copy
 from io import StringIO
-from typing import Callable, Dict, Optional, Sequence, Type, Union
+from typing import Callable, Dict, Final, List, Optional, Sequence, Type
 
 import yaml
 
@@ -24,6 +24,11 @@ from mwfilter.pandoc.ast.blocks.para import Para
 from mwfilter.pandoc.ast.blocks.plain import Plain
 from mwfilter.pandoc.ast.blocks.raw_block import RawBlock
 from mwfilter.pandoc.ast.blocks.table import Table
+from mwfilter.pandoc.ast.blocks.table.cell import Cell
+from mwfilter.pandoc.ast.blocks.table.row import Row
+
+# AST: ETC
+from mwfilter.pandoc.ast.dump.interface import DumperInterface
 from mwfilter.pandoc.ast.enums import MathType
 
 # AST: Inlines
@@ -49,9 +54,6 @@ from mwfilter.pandoc.ast.inlines.subscript import Subscript
 from mwfilter.pandoc.ast.inlines.superscript import Superscript
 from mwfilter.pandoc.ast.inlines.underline import Underline
 
-# AST: ETC
-from mwfilter.pandoc.ast.interface import DumperInterface
-
 # AST: Metas
 from mwfilter.pandoc.ast.metas.meta import Meta
 from mwfilter.pandoc.ast.metas.meta_blocks import MetaBlocks
@@ -62,17 +64,38 @@ from mwfilter.pandoc.ast.metas.meta_map import MetaMap
 from mwfilter.pandoc.ast.metas.meta_string import MetaString
 from mwfilter.pandoc.ast.metas.meta_value import MetaValue
 from mwfilter.pandoc.ast.pandoc import Pandoc
+from mwfilter.strings.tag_quote import tag_quote
+from mwfilter.strings.tag_strip import strip_tags
 from mwfilter.types.override import override
+
+DEFAULT_REFERENCES_TAGS: Final[Sequence[str]] = (
+    "<references>",
+    "<references/>",
+    "<references />",
+)
 
 
 class PandocToMarkdownDumper(DumperInterface):
     _metas: Dict[Type[MetaValue], Callable[[MetaValue], str]]
     _blocks: Dict[Type[Block], Callable[[Block], str]]
     _inlines: Dict[Type[Inline], Callable[[Inline], str]]
+    _footnotes: List[Note]
 
-    def __init__(self, *, no_abspath=False, no_yaml_frontmatter=False):
+    def __init__(
+        self,
+        *,
+        no_abspath=False,
+        no_yaml_frontmatter=False,
+        no_skip_attachments=False,
+        no_references_to_footnotes=False,
+        references_tags=DEFAULT_REFERENCES_TAGS,
+    ):
         self._no_abspath = no_abspath
         self._no_yaml_frontmatter = no_yaml_frontmatter
+        self._no_skip_attachments = no_skip_attachments
+        self._no_references_to_footnotes = no_references_to_footnotes
+        self._references_tags = list(references_tags)
+
         self._metas = {
             MetaBlocks: self.on_meta_blocks,
             MetaBool: self.on_meta_bool,
@@ -119,6 +142,7 @@ class PandocToMarkdownDumper(DumperInterface):
             Superscript: self.on_superscript,
             Underline: self.on_underline,
         }
+        self._footnotes = list()
 
     @staticmethod
     def update_page_meta(pandoc: Pandoc, meta: PageMeta):
@@ -147,50 +171,6 @@ class PandocToMarkdownDumper(DumperInterface):
             buffer.write(self.on_inline(inline))
         return buffer.getvalue()
 
-    def dump_items_quote(
-        self,
-        items: Union[str, Block, Inline, Sequence[Block], Sequence[Inline]],
-        begin: str,
-        end: Optional[str] = None,
-    ) -> str:
-        buffer = StringIO()
-        buffer.write(begin)
-        if isinstance(items, str):
-            buffer.write(items)
-        elif isinstance(items, Block):
-            buffer.write(self.on_block(items))
-        elif isinstance(items, Inline):
-            buffer.write(self.on_inline(items))
-        elif isinstance(items, Sequence):
-            if all(isinstance(i, Inline) for i in items):
-                buffer.write(self.dump_inlines(items))  # type: ignore[arg-type]
-            elif all(isinstance(b, Block) for b in items):
-                buffer.write(self.dump_blocks(items))  # type: ignore[arg-type]
-            else:
-                raise TypeError("Inline and Block elements should not be mixed")
-        else:
-            raise TypeError(f"Unsupported item type: {type(items).__name__}")
-        buffer.write(end if end else begin)
-        return buffer.getvalue()
-
-    def dump_items_tag_quote(
-        self,
-        tag: str,
-        items: Union[str, Block, Inline, Sequence[Block], Sequence[Inline]],
-        **kwargs: str,
-    ) -> str:
-        buffer = StringIO()
-        buffer.write(f"<{tag}")
-        if kwargs:
-            for k, v in kwargs.items():
-                buffer.write(f' {k}="{v}"')
-        buffer.write(">")
-        return self.dump_items_quote(
-            items=items,
-            begin=buffer.getvalue(),
-            end=f"</{tag}>",
-        )
-
     @override
     def on_pandoc(self, e: Pandoc) -> str:
         buffer = StringIO()
@@ -211,8 +191,8 @@ class PandocToMarkdownDumper(DumperInterface):
             return ""
         buffer = StringIO()
         buffer.write("---\n")
-        buffer.write(yaml.dump(e.serialize(), default_flow_style=False))
-        buffer.write("---\n\n")
+        buffer.write(yaml.dump(e.serialize(), default_flow_style=False).strip())
+        buffer.write("\n---\n\n")
         return buffer.getvalue()
 
     @override
@@ -259,18 +239,18 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_block_quote(self, e: BlockQuote) -> str:
-        return self.dump_items_tag_quote("blockquote", e.blocks)
+        buffer = StringIO()
+        with tag_quote(buffer, "blockquote"):
+            buffer.write(self.dump_blocks(e.blocks))
+        return buffer.getvalue()
 
     @override
     def on_bullet_list(self, e: BulletList) -> str:
         buffer = StringIO()
-        buffer.write("<ul>\n")
-        for blocks in e.blockss:
-            buffer.write("<li>\n")
-            for block in blocks:
-                buffer.write(self.on_block(block))
-            buffer.write("</li>\n")
-        buffer.write("</ul>\n")
+        with tag_quote(buffer, "ul"):
+            for blocks in e.blockss:
+                with tag_quote(buffer, "li"):
+                    buffer.write(self.dump_blocks(blocks))
         return buffer.getvalue()
 
     @override
@@ -280,40 +260,28 @@ class PandocToMarkdownDumper(DumperInterface):
         buffer = StringIO()
         buffer.write("```\n")
         buffer.write(e.text)
-        buffer.write("```\n")
+        buffer.write("\n```\n")
         return buffer.getvalue()
 
     @override
     def on_definition_list(self, e: DefinitionList) -> str:
         buffer = StringIO()
-        buffer.write("<dl>\n")
-        for item in e.items:
-            inlines = item[0]
-            blockss = item[1]
-
-            buffer.write("<dt>\n")
-            for inline in inlines:
-                buffer.write(self.on_inline(inline))
-            buffer.write("</dt>\n")
-
-            for blocks in blockss:
-                buffer.write("<dd>\n")
-                try:
-                    for block in blocks:
-                        text = self.on_block(block)
-                        buffer.write(text)
-                finally:
-                    buffer.write("</dd>\n")
-            buffer.write("\n")
-        buffer.write("</dl>\n")
+        with tag_quote(buffer, "dl"):
+            for item in e.items:
+                inlines = item[0]
+                blockss = item[1]
+                with tag_quote(buffer, "dt"):
+                    buffer.write(self.dump_inlines(inlines))
+                for blocks in blockss:
+                    with tag_quote(buffer, "dd"):
+                        buffer.write(self.dump_blocks(blocks))
         return buffer.getvalue()
 
     @override
     def on_div(self, e: Div) -> str:
         buffer = StringIO()
-        buffer.write("<div>\n")
-        buffer.write(self.dump_blocks(e.blocks))
-        buffer.write("</div>\n")
+        with tag_quote(buffer, "div"):
+            buffer.write(self.dump_blocks(e.blocks))
         return buffer.getvalue()
 
     @override
@@ -321,25 +289,22 @@ class PandocToMarkdownDumper(DumperInterface):
         if not e.attr.is_empty:
             raise NotImplementedError
         buffer = StringIO()
-        buffer.write("<figure>\n")
-        buffer.write(self.dump_blocks(e.blocks))
-        if e.caption.short_caption or e.caption.blocks:
-            buffer.write("<figcaption>\n")
-            if e.caption.short_caption:
-                buffer.write(self.dump_inlines(e.caption.short_caption.inlines))
-            if e.caption.blocks:
-                buffer.write(self.dump_blocks(e.caption.blocks))
-            buffer.write("</figcaption>\n")
-        buffer.write("</figure>\n")
+        with tag_quote(buffer, "figure"):
+            buffer.write(self.dump_blocks(e.blocks))
+            if e.caption.short_caption or e.caption.blocks:
+                with tag_quote(buffer, "figcaption"):
+                    if e.caption.short_caption:
+                        buffer.write(self.dump_inlines(e.caption.short_caption.inlines))
+                    if e.caption.blocks:
+                        buffer.write(self.dump_blocks(e.caption.blocks))
         return buffer.getvalue()
 
     @override
     def on_header(self, e: Header) -> str:
         assert 1 <= e.level
         buffer = StringIO()
-        buffer.write(f"<h{e.level}>\n")
-        buffer.write(self.dump_inlines(e.inlines))
-        buffer.write(f"</h{e.level}>\n")
+        with tag_quote(buffer, f"h{e.level}"):
+            buffer.write(self.dump_inlines(e.inlines))
         return buffer.getvalue()
 
     @override
@@ -348,143 +313,104 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_line_block(self, e: LineBlock) -> str:
-        buffer = StringIO()
         # https://developer.mozilla.org/en-US/docs/Web/HTML/Element/nobr
-        buffer.write('<span style="white-space: nowrap;">\n')
-        for inlines in e.inliness:
-            buffer.write(self.dump_inlines(inlines))
-        buffer.write("</span>\n")
+        buffer = StringIO()
+        with tag_quote(buffer, "span", style="white-space:nowrap"):
+            for inlines in e.inliness:
+                buffer.write(self.dump_inlines(inlines))
         return buffer.getvalue()
 
     @override
     def on_ordered_list(self, e: OrderedList) -> str:
         buffer = StringIO()
-        buffer.write(f'<ol start="{e.list_attributes.start_number}">\n')
-        for blocks in e.blockss:
-            buffer.write("<li>\n")
-            for block in blocks:
-                buffer.write(self.on_block(block))
-            buffer.write("</li>\n")
-        buffer.write("</ol>\n")
+        with tag_quote(buffer, "ol", start=e.list_attributes.start_number):
+            for blocks in e.blockss:
+                with tag_quote(buffer, "li"):
+                    buffer.write(self.dump_blocks(blocks))
         return buffer.getvalue()
 
     @override
     def on_para(self, e: Para) -> str:
         buffer = StringIO()
-        buffer.write("<p>\n")
-        buffer.write(self.dump_inlines(e.inlines))
-        buffer.write("</p>\n")
+        with tag_quote(buffer, "p"):
+            buffer.write(self.dump_inlines(e.inlines))
         return buffer.getvalue()
 
     @override
     def on_plain(self, e: Plain) -> str:
-        buffer = StringIO()
-        buffer.write("<pre>\n")
-        buffer.write(self.dump_inlines(e.inlines))
-        buffer.write("</pre>\n")
-        return buffer.getvalue()
+        return self.dump_inlines(e.inlines)
 
     @override
     def on_raw_block(self, e: RawBlock) -> str:
+        if e.format == "html":
+            if e.text.lower() in self._references_tags:
+                return self.on_references()
+            else:
+                return e.text
+        else:
+            raise ValueError(f"Unsupported RawBlock's format: {e.format}")
+
+    def on_cell(self, e: Cell) -> str:
+        if not e.attr.is_empty:
+            raise NotImplementedError
+
+        # alignment = cell.alignment  # TODO
+        # row_span = cell.row_span  # TODO
+        # col_span = cell.col_span  # TODO
+
         buffer = StringIO()
-        buffer.write("<pre>\n")
-        buffer.write(e.text)
-        buffer.write("</pre>\n")
+        with tag_quote(buffer, "td"):
+            buffer.write(self.dump_blocks(e.blocks))
+        return buffer.getvalue()
+
+    def on_row(self, e: Row) -> str:
+        if not e.attr.is_empty:
+            raise NotImplementedError
+
+        buffer = StringIO()
+        with tag_quote(buffer, "tr"):
+            for cell in e.cells:
+                buffer.write(self.on_cell(cell))
         return buffer.getvalue()
 
     @override
     def on_table(self, e: Table) -> str:
         if not e.attr.is_empty:
             raise NotImplementedError
+
         buffer = StringIO()
-        buffer.write("<table>\n")
-        if e.caption.short_caption or e.caption.blocks:
-            buffer.write("<caption>\n")
-            if e.caption.short_caption:
-                buffer.write(self.dump_inlines(e.caption.short_caption.inlines))
-            if e.caption.blocks:
-                buffer.write(self.dump_blocks(e.caption.blocks))
-            buffer.write("</caption>\n")
+        with tag_quote(buffer, "table"):
+            if e.caption.short_caption or e.caption.blocks:
+                with tag_quote(buffer, "caption"):
+                    if e.caption.short_caption:
+                        buffer.write(self.dump_inlines(e.caption.short_caption.inlines))
+                    if e.caption.blocks:
+                        buffer.write(self.dump_blocks(e.caption.blocks))
 
-        if e.table_head:
-            buffer.write("<thead>\n")
-            if not e.table_head.attr.is_empty:
-                raise NotImplementedError
-            for row in e.table_head.rows:
-                buffer.write("<tr>\n")
-                if not row.attr.is_empty:
-                    raise NotImplementedError
-                for cell in row.cells:
-                    if not cell.attr.is_empty:
+            if e.table_head:
+                with tag_quote(buffer, "thead"):
+                    if not e.table_head.attr.is_empty:
                         raise NotImplementedError
-                    # alignment = cell.alignment  # TODO
-                    # row_span = cell.row_span  # TODO
-                    # col_span = cell.col_span  # TODO
-                    buffer.write("<td>\n")
-                    buffer.write(self.dump_blocks(cell.blocks))
-                    buffer.write("</td>\n")
-                buffer.write("</tr>\n")
-            buffer.write("</thead>\n")
+                    for row in e.table_head.rows:
+                        buffer.write(self.on_row(row))
 
-        for tbody in e.table_body:
-            buffer.write("<tbody>\n")
-            if not tbody.attr.is_empty:
-                raise NotImplementedError
-            # row_head_columns = tbody.row_head_columns  # TODO
-
-            for row in tbody.header_rows:
-                buffer.write("<tr>\n")
-                if not row.attr.is_empty:
-                    raise NotImplementedError
-                for cell in row.cells:
-                    if not cell.attr.is_empty:
+            for tbody in e.table_body:
+                with tag_quote(buffer, "tbody"):
+                    if not tbody.attr.is_empty:
                         raise NotImplementedError
-                    # alignment = cell.alignment  # TODO
-                    # row_span = cell.row_span  # TODO
-                    # col_span = cell.col_span  # TODO
-                    buffer.write("<td>\n")
-                    buffer.write(self.dump_blocks(cell.blocks))
-                    buffer.write("</td>\n")
-                buffer.write("</tr>\n")
+                    # row_head_columns = tbody.row_head_columns  # TODO
+                    for row in tbody.header_rows:
+                        buffer.write(self.on_row(row))
+                    for row in tbody.body_rows:
+                        buffer.write(self.on_row(row))
 
-            for row in tbody.body_rows:
-                buffer.write("<tr>\n")
-                if not row.attr.is_empty:
-                    raise NotImplementedError
-                for cell in row.cells:
-                    if not cell.attr.is_empty:
+            if e.table_foot:
+                with tag_quote(buffer, "tfoot"):
+                    if not e.table_foot.attr.is_empty:
                         raise NotImplementedError
-                    # alignment = cell.alignment  # TODO
-                    # row_span = cell.row_span  # TODO
-                    # col_span = cell.col_span  # TODO
-                    buffer.write("<td>\n")
-                    buffer.write(self.dump_blocks(cell.blocks))
-                    buffer.write("</td>\n")
-                buffer.write("</tr>\n")
+                    for row in e.table_foot.rows:
+                        buffer.write(self.on_row(row))
 
-            buffer.write("</tbody>\n")
-
-        if e.table_foot:
-            buffer.write("<tfoot>\n")
-            if not e.table_foot.attr.is_empty:
-                raise NotImplementedError
-            for row in e.table_foot.rows:
-                buffer.write("<tr>\n")
-                if not row.attr.is_empty:
-                    raise NotImplementedError
-                for cell in row.cells:
-                    if not cell.attr.is_empty:
-                        raise NotImplementedError
-                    # alignment = cell.alignment  # TODO
-                    # row_span = cell.row_span  # TODO
-                    # col_span = cell.col_span  # TODO
-                    buffer.write("<td>\n")
-                    buffer.write(self.dump_blocks(cell.blocks))
-                    buffer.write("</td>\n")
-                buffer.write("</tr>\n")
-            buffer.write("</tfoot>\n")
-
-        buffer.write("</table>\n")
         return buffer.getvalue()
 
     # ----------------------------------------------------------------------------------
@@ -500,20 +426,33 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_cite(self, e: Cite) -> str:
-        return self.dump_items_tag_quote("cite", e.inlines)
+        # citations = e.citations  # TODO
+        buffer = StringIO()
+        with tag_quote(buffer, "cite", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_code(self, e: Code) -> str:
         if not e.attr.is_empty:
             raise NotImplementedError
-        return self.dump_items_tag_quote("code", e.text)
+        buffer = StringIO()
+        with tag_quote(buffer, "code", newline=None):
+            buffer.write(e.text)
+        return buffer.getvalue()
 
     @override
     def on_emph(self, e: Emph) -> str:
-        return self.dump_items_tag_quote("em", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "em", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_image(self, e: Image) -> str:
+        if not self._no_skip_attachments:
+            return self.dump_inlines(e.inlines)
+
         if not e.attr.is_empty:
             raise NotImplementedError
         buffer = StringIO()
@@ -541,23 +480,25 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_math(self, e: Math) -> str:
-        assert e.math_type in (MathType.DisplayMath, MathType.InlineMath)
-        token = "$$\n" if e.math_type == MathType.DisplayMath else "$"
-        buffer = StringIO()
-        buffer.write(token)
-        buffer.write(e.text.strip())
-        buffer.write("\n")
-        buffer.write(token)
-        return buffer.getvalue()
+        if e.math_type == MathType.DisplayMath:
+            return f"$$\n{e.text.strip()}\n$$\n"
+        else:
+            assert e.math_type == MathType.InlineMath
+            return f"${e.text.strip()}$"
 
     @override
     def on_note(self, e: Note) -> str:
-        raise NotImplementedError
+        index = len(self._footnotes)
+        self._footnotes.append(e)
+        return f"[^{index}]"
 
     @override
     def on_quoted(self, e: Quoted) -> str:
-        # e.quote_type  # TODO
-        return self.dump_items_tag_quote("q", e.inlines)
+        # quote_type = e.quote_type  # TODO
+        buffer = StringIO()
+        with tag_quote(buffer, "q", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_raw_inline(self, e: RawInline) -> str:
@@ -565,7 +506,10 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_small_caps(self, e: SmallCaps) -> str:
-        return self.dump_items_tag_quote("small", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "small", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_soft_break(self, e: SoftBreak) -> str:
@@ -573,13 +517,16 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_space(self, e: Space) -> str:
-        return "&nbsp;"
+        return " "  # "&nbsp;"
 
     @override
     def on_span(self, e: Span) -> str:
         if not e.attr.is_empty:
             raise NotImplementedError
-        return self.dump_items_tag_quote("span", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "span", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_str(self, e: Str) -> str:
@@ -587,23 +534,53 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_strikeout(self, e: Strikeout) -> str:
-        return self.dump_items_tag_quote("s", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "del", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_strong(self, e: Strong) -> str:
-        return self.dump_items_tag_quote("strong", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "strong", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_subscript(self, e: Subscript) -> str:
-        return self.dump_items_tag_quote("sub", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "sub", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_superscript(self, e: Superscript) -> str:
-        return self.dump_items_tag_quote("sup", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "sup", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
 
     @override
     def on_underline(self, e: Underline) -> str:
-        return self.dump_items_tag_quote("u", e.inlines)
+        buffer = StringIO()
+        with tag_quote(buffer, "u", newline=None):
+            buffer.write(self.dump_inlines(e.inlines))
+        return buffer.getvalue()
+
+    # ----------------------------------------------------------------------------------
+    # ETC Events
+    # ----------------------------------------------------------------------------------
+
+    def on_references(self) -> str:
+        if not self._footnotes:
+            return str()
+
+        buffer = StringIO()
+        for i, note in enumerate(self._footnotes):
+            buffer.write(f"[^{i}]: ")
+            buffer.write(strip_tags(self.dump_blocks(note.blocks)).strip())
+            buffer.write("\n")
+        return buffer.getvalue()
 
 
 def mediawiki_to_markdown(mediawiki_context: str) -> str:
