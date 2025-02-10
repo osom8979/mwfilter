@@ -358,7 +358,7 @@ class PandocToMarkdownDumper(DumperInterface):
             if e.text.lower() in self._references_tags:
                 return self.on_references()
             else:
-                return e.text
+                return e.text.replace("<", "&lt;").replace(">", "&gt;")
         else:
             raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 
@@ -446,8 +446,9 @@ class PandocToMarkdownDumper(DumperInterface):
         if not e.attr.is_empty:
             raise NotImplementedError
         buffer = StringIO()
-        with tag_quote(buffer, "code", newline=None):
-            buffer.write(e.text)
+        buffer.write("`")
+        buffer.write(e.text.replace("`", "&#96;"))
+        buffer.write("`")
         return buffer.getvalue()
 
     @override
@@ -515,7 +516,9 @@ class PandocToMarkdownDumper(DumperInterface):
     @override
     def on_raw_inline(self, e: RawInline) -> str:
         if e.format == "html":
-            return e.text
+            return e.text.replace("<", "&lt;").replace(">", "&gt;")
+        elif e.format == "mediawiki":
+            return e.text  # e.g. {{{ ... }}}
         else:
             raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 
