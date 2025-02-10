@@ -37,3 +37,7 @@ class Attr:
     @property
     def is_empty(self):
         return not self.identifier and not self.classes and not self.pairs
+
+    @property
+    def kwargs(self):
+        return dict(self.pairs)

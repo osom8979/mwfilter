@@ -30,7 +30,7 @@ class PageMeta:
     edit_time: Optional[datetime] = None
     last_rev_time: Optional[datetime] = None
 
-    _alias: List[str] = field(default_factory=list)
+    _redirect_pagename: Optional[str] = None
 
     @classmethod
     def from_page(cls, page: Page):
@@ -62,9 +62,13 @@ class PageMeta:
         else:
             return self.name
 
+    @staticmethod
+    def normalize_page_name(page_name: str) -> str:
+        return page_name.removeprefix("/").replace(" ", "_")
+
     @property
     def filename(self) -> str:
-        return self.page_name.removeprefix("/").replace(" ", "_")
+        return self.normalize_page_name(self.page_name)
 
     @property
     def date(self):
@@ -83,8 +87,9 @@ class PageMeta:
         return self.filename + ".md"
 
     @property
-    def alias(self):
-        return self._alias
+    def redirect_pagename(self):
+        return self._redirect_pagename
 
-    def append_alias(self, page_name: str) -> None:
-        self._alias.append(page_name)
+    @redirect_pagename.setter
+    def redirect_pagename(self, value: Optional[str]) -> None:
+        self._redirect_pagename = value

@@ -14,3 +14,7 @@ class Meta(Dict[str, MetaValue]):
 
     def serialize(self):
         return {k: v.serialize() for k, v in self.items()}
+
+    @property
+    def has_redirect(self):
+        return self.__contains__("redirect")

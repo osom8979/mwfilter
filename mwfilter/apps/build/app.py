@@ -117,7 +117,6 @@ class BuildApp:
 
         infos = self.create_convert_infos()
 
-        redirected_infos = list()
         source_infos = dict()
 
         for info in infos:
@@ -125,14 +124,8 @@ class BuildApp:
                 logger.warning(f"Filtered page: '{info.filename}'")
                 continue
             if info.meta.redirect:
-                redirected_infos.append(info)
-            else:
-                source_infos[info.filename] = info
-
-        for info in redirected_infos:
-            redirect_pagename = info.redirect_pagename
-            if source_info := source_infos.get(redirect_pagename):
-                source_info.meta.append_alias(info.filename)
+                info.meta.redirect_pagename = info.redirect_pagename
+            source_infos[info.filename] = info
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:
             mkdocs = yaml.safe_load(f)

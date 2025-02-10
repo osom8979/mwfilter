@@ -68,7 +68,7 @@ from mwfilter.strings.tag_quote import tag_quote
 from mwfilter.strings.tag_strip import strip_tags
 from mwfilter.types.override import override
 
-DEFAULT_REFERENCES_TAGS: Final[Sequence[str]] = (
+DEFAULT_REFERENCES_LOWER_TAGS: Final[Sequence[str]] = (
     "<references>",
     "<references/>",
     "<references />",
@@ -85,12 +85,21 @@ class PandocToMarkdownDumper(DumperInterface):
         self,
         *,
         no_abspath=False,
+        no_extension=False,
         no_yaml_frontmatter=False,
         no_skip_attachments=False,
         no_references_to_footnotes=False,
-        references_tags=DEFAULT_REFERENCES_TAGS,
+        references_tags=DEFAULT_REFERENCES_LOWER_TAGS,
     ):
         self._no_abspath = no_abspath
+        # https://www.mkdocs.org/user-guide/writing-your-docs/#linking-to-pages
+        # [Warning] Using absolute paths with links is not officially supported.
+        # Relative paths are adjusted by MkDocs to ensure they are always relative to
+        # the page. Absolute paths are not modified at all. This means that your links
+        # using absolute paths might work fine in your local environment but they might
+        # break once you deploy them to your production server.
+
+        self._no_extension = no_extension
         self._no_yaml_frontmatter = no_yaml_frontmatter
         self._no_skip_attachments = no_skip_attachments
         self._no_references_to_footnotes = no_references_to_footnotes
@@ -150,8 +159,9 @@ class PandocToMarkdownDumper(DumperInterface):
             pandoc.meta["title"] = MetaString(meta.name)
         if meta.date:
             pandoc.meta["date"] = MetaString(meta.date)
-        if meta.alias:
-            pandoc.meta["alias"] = MetaList(list(MetaString(a) for a in meta.alias))
+        if meta.redirect and meta.redirect_pagename:
+            pandoc.meta["template"] = MetaString("redirect.html")
+            pandoc.meta["redirect"] = MetaString("/" + meta.redirect_pagename)
 
     def dump(self, pandoc: Pandoc, meta: Optional[PageMeta] = None) -> str:
         if meta is not None:
@@ -176,6 +186,9 @@ class PandocToMarkdownDumper(DumperInterface):
         buffer = StringIO()
         if not self._no_yaml_frontmatter:
             buffer.write(self.on_meta(e.meta))
+            if e.meta.has_redirect:
+                return buffer.getvalue()
+
         for block in e.blocks:
             text = self.on_block(block)
             buffer.write(text)
@@ -255,10 +268,9 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_code_block(self, e: CodeBlock) -> str:
-        if not e.attr.is_empty:
-            raise NotImplementedError
+        lang = e.attr.classes[0] if e.attr.classes else str()
         buffer = StringIO()
-        buffer.write("```\n")
+        buffer.write(f"```{lang}\n")
         buffer.write(e.text)
         buffer.write("\n```\n")
         return buffer.getvalue()
@@ -351,15 +363,12 @@ class PandocToMarkdownDumper(DumperInterface):
             raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 
     def on_cell(self, e: Cell) -> str:
-        if not e.attr.is_empty:
-            raise NotImplementedError
-
         # alignment = cell.alignment  # TODO
         # row_span = cell.row_span  # TODO
         # col_span = cell.col_span  # TODO
 
         buffer = StringIO()
-        with tag_quote(buffer, "td"):
+        with tag_quote(buffer, "td", **e.attr.kwargs):
             buffer.write(self.dump_blocks(e.blocks))
         return buffer.getvalue()
 
@@ -474,7 +483,10 @@ class PandocToMarkdownDumper(DumperInterface):
         buffer = StringIO()
         buffer.write("[")
         buffer.write(self.dump_inlines(e.inlines))
-        link = e.target.as_markdown_link(no_abspath=self._no_abspath)
+        link = e.target.as_markdown_link(
+            no_extension=self._no_extension,
+            no_abspath=self._no_abspath,
+        )
         buffer.write(f"]({link})")
         return buffer.getvalue()
 
@@ -502,7 +514,10 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @override
     def on_raw_inline(self, e: RawInline) -> str:
-        raise NotImplementedError
+        if e.format == "html":
+            return e.text
+        else:
+            raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 
     @override
     def on_small_caps(self, e: SmallCaps) -> str:
@@ -581,9 +596,3 @@ class PandocToMarkdownDumper(DumperInterface):
             buffer.write(strip_tags(self.dump_blocks(note.blocks)).strip())
             buffer.write("\n")
         return buffer.getvalue()
-
-
-def mediawiki_to_markdown(mediawiki_context: str) -> str:
-    dumper = PandocToMarkdownDumper()
-    pandoc = Pandoc.parse_text(mediawiki_context)
-    return dumper.dump(pandoc)

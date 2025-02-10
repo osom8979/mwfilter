@@ -5,7 +5,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from re import Pattern
+from re import IGNORECASE, Pattern
 from re import compile as re_compile
 
 from pypandoc import convert_file
@@ -17,7 +17,10 @@ from mwfilter.mw.page_meta import PageMeta
 from mwfilter.pandoc.ast.pandoc import Pandoc
 from mwfilter.pandoc.markdown.dumper import PandocToMarkdownDumper
 
-REDIRECT_REGEX: Pattern[str] = re_compile(r"\s*#REDIRECT\s*\[\[(.*)]]")
+REDIRECT_REGEX: Pattern[str] = re_compile(r"^#REDIRECT\s*\[\[(.*)]]", flags=IGNORECASE)
+"""
+https://www.mediawiki.org/wiki/Help:Redirects#Creating_a_redirect
+"""
 
 
 @dataclass
@@ -67,7 +70,7 @@ class ConvertInfo:
     @property
     def redirect_pagename(self) -> str:
         if match := REDIRECT_REGEX.match(self.text.strip()):
-            return match.group(1)
+            return PageMeta.normalize_page_name(match.group(1))
         else:
             return str()
 
@@ -77,10 +80,6 @@ class ConvertInfo:
         buffer.write("---\n")
         buffer.write(f"title: {self.name}\n")
         buffer.write(f"date: {self.date}\n")
-        if self.meta.alias:
-            buffer.write("alias:\n")
-            for alias in self.meta.alias:
-                buffer.write(f"  - {alias}\n")
         buffer.write("---\n")
         buffer.write("\n")
         return buffer.getvalue()
@@ -105,5 +104,5 @@ class ConvertInfo:
     def as_markdown_v2(self) -> str:
         with open(self.text_path, "rt") as f:
             pandoc = Pandoc.parse_text(f.read())
-            dumper = PandocToMarkdownDumper()
+            dumper = PandocToMarkdownDumper(no_abspath=True)
             return dumper.dump(pandoc, self.meta)
