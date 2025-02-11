@@ -3,7 +3,7 @@
 from copy import copy
 from io import StringIO
 from types import MappingProxyType
-from typing import Callable, Final, List, Mapping, Optional, Sequence, Type
+from typing import Any, Callable, Dict, Final, List, Mapping, Optional, Sequence, Type
 
 import yaml
 
@@ -30,7 +30,7 @@ from mwfilter.pandoc.ast.blocks.table.row import Row
 
 # AST: ETC
 from mwfilter.pandoc.ast.dump.interface import DumperInterface
-from mwfilter.pandoc.ast.enums import MathType
+from mwfilter.pandoc.ast.enums import Alignment, MathType
 
 # AST: Inlines
 from mwfilter.pandoc.ast.inlines.cite import Cite
@@ -179,8 +179,6 @@ class PandocToMarkdownDumper(DumperInterface):
                 Underline: self.on_underline,
             }
         )
-
-        self._footnotes = list()
 
     @staticmethod
     def update_page_meta(pandoc: Pandoc, meta: PageMeta):
@@ -399,12 +397,29 @@ class PandocToMarkdownDumper(DumperInterface):
             raise ValueError(f"Unsupported RawBlock's format: '{e.format}'")
 
     def on_cell(self, e: Cell) -> str:
-        # alignment = cell.alignment  # TODO
-        # row_span = cell.row_span  # TODO
-        # col_span = cell.col_span  # TODO
+        kwargs: Dict[str, Any] = dict()
+        kwargs.update(e.attr.kwargs)
+
+        match e.alignment:
+            case Alignment.AlignLeft:
+                kwargs["align"] = "left"
+            case Alignment.AlignRight:
+                kwargs["align"] = "right"
+            case Alignment.AlignCenter:
+                kwargs["align"] = "center"
+            case Alignment.AlignDefault:
+                pass
+            case _:
+                raise ValueError(f"Invalid alignment value: {e.alignment}")
+
+        if 1 <= e.row_span:
+            kwargs["rowspan"] = e.row_span
+
+        if 1 <= e.col_span:
+            kwargs["colspan"] = e.col_span
 
         buffer = StringIO()
-        with tag_quote(buffer, "td", **e.attr.kwargs):
+        with tag_quote(buffer, "td", **kwargs):
             buffer.write(self.dump_blocks(e.blocks))
         return buffer.getvalue()
 
