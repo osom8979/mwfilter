@@ -2,7 +2,8 @@
 
 from copy import copy
 from io import StringIO
-from typing import Callable, Dict, Final, List, Optional, Sequence, Type
+from types import MappingProxyType
+from typing import Callable, Final, List, Mapping, Optional, Sequence, Type
 
 import yaml
 
@@ -74,11 +75,21 @@ DEFAULT_REFERENCES_LOWER_TAGS: Final[Sequence[str]] = (
     "<references />",
 )
 
+DEFAULT_CONVERT_RAW_TAGS: Final[MappingProxyType[str, str]] = MappingProxyType(
+    {
+        "<b>": "<strong>",
+        "</b>": "</strong>",
+        "<strong>": "<strong>",
+        "</strong>": "</strong>",
+    }
+)
+
 
 class PandocToMarkdownDumper(DumperInterface):
-    _metas: Dict[Type[MetaValue], Callable[[MetaValue], str]]
-    _blocks: Dict[Type[Block], Callable[[Block], str]]
-    _inlines: Dict[Type[Inline], Callable[[Inline], str]]
+    _metas: MappingProxyType[Type[MetaValue], Callable[[MetaValue], str]]
+    _blocks: MappingProxyType[Type[Block], Callable[[Block], str]]
+    _inlines: MappingProxyType[Type[Inline], Callable[[Inline], str]]
+
     _footnotes: List[Note]
 
     def __init__(
@@ -89,7 +100,8 @@ class PandocToMarkdownDumper(DumperInterface):
         no_yaml_frontmatter=False,
         no_skip_attachments=False,
         no_references_to_footnotes=False,
-        references_tags=DEFAULT_REFERENCES_LOWER_TAGS,
+        references_tags: Optional[Sequence[str]] = DEFAULT_REFERENCES_LOWER_TAGS,
+        convert_raw_tags: Optional[Mapping[str, str]] = DEFAULT_CONVERT_RAW_TAGS,
     ):
         self._no_abspath = no_abspath
         # https://www.mkdocs.org/user-guide/writing-your-docs/#linking-to-pages
@@ -103,54 +115,71 @@ class PandocToMarkdownDumper(DumperInterface):
         self._no_yaml_frontmatter = no_yaml_frontmatter
         self._no_skip_attachments = no_skip_attachments
         self._no_references_to_footnotes = no_references_to_footnotes
-        self._references_tags = list(references_tags)
+        self._references_tags = list(references_tags if references_tags else list())
+        self._convert_raw_tags = dict(convert_raw_tags if convert_raw_tags else dict())
+        self._metas = self._create_metas_callbacks()
+        self._blocks = self._create_blocks_callbacks()
+        self._inlines = self._create_inline_callbacks()
+        self._footnotes = list()
 
-        self._metas = {
-            MetaBlocks: self.on_meta_blocks,
-            MetaBool: self.on_meta_bool,
-            MetaInlines: self.on_meta_inlines,
-            MetaList: self.on_meta_list,
-            MetaMap: self.on_meta_map,
-            MetaString: self.on_meta_string,
-        }
-        self._blocks = {
-            BlockQuote: self.on_block_quote,
-            BulletList: self.on_bullet_list,
-            CodeBlock: self.on_code_block,
-            DefinitionList: self.on_definition_list,
-            Div: self.on_div,
-            Figure: self.on_figure,
-            Header: self.on_header,
-            HorizontalRule: self.on_horizontal_rule,
-            LineBlock: self.on_line_block,
-            OrderedList: self.on_ordered_list,
-            Para: self.on_para,
-            Plain: self.on_plain,
-            RawBlock: self.on_raw_block,
-            Table: self.on_table,
-        }
-        self._inlines = {
-            Cite: self.on_cite,
-            Code: self.on_code,
-            Emph: self.on_emph,
-            Image: self.on_image,
-            LineBreak: self.on_line_break,
-            Link: self.on_link,
-            Math: self.on_math,
-            Note: self.on_note,
-            Quoted: self.on_quoted,
-            RawInline: self.on_raw_inline,
-            SmallCaps: self.on_small_caps,
-            SoftBreak: self.on_soft_break,
-            Space: self.on_space,
-            Span: self.on_span,
-            Str: self.on_str,
-            Strikeout: self.on_strikeout,
-            Strong: self.on_strong,
-            Subscript: self.on_subscript,
-            Superscript: self.on_superscript,
-            Underline: self.on_underline,
-        }
+    def _create_metas_callbacks(self):
+        return MappingProxyType(
+            {
+                MetaBlocks: self.on_meta_blocks,
+                MetaBool: self.on_meta_bool,
+                MetaInlines: self.on_meta_inlines,
+                MetaList: self.on_meta_list,
+                MetaMap: self.on_meta_map,
+                MetaString: self.on_meta_string,
+            }
+        )
+
+    def _create_blocks_callbacks(self):
+        return MappingProxyType(
+            {
+                BlockQuote: self.on_block_quote,
+                BulletList: self.on_bullet_list,
+                CodeBlock: self.on_code_block,
+                DefinitionList: self.on_definition_list,
+                Div: self.on_div,
+                Figure: self.on_figure,
+                Header: self.on_header,
+                HorizontalRule: self.on_horizontal_rule,
+                LineBlock: self.on_line_block,
+                OrderedList: self.on_ordered_list,
+                Para: self.on_para,
+                Plain: self.on_plain,
+                RawBlock: self.on_raw_block,
+                Table: self.on_table,
+            }
+        )
+
+    def _create_inline_callbacks(self):
+        return MappingProxyType(
+            {
+                Cite: self.on_cite,
+                Code: self.on_code,
+                Emph: self.on_emph,
+                Image: self.on_image,
+                LineBreak: self.on_line_break,
+                Link: self.on_link,
+                Math: self.on_math,
+                Note: self.on_note,
+                Quoted: self.on_quoted,
+                RawInline: self.on_raw_inline,
+                SmallCaps: self.on_small_caps,
+                SoftBreak: self.on_soft_break,
+                Space: self.on_space,
+                Span: self.on_span,
+                Str: self.on_str,
+                Strikeout: self.on_strikeout,
+                Strong: self.on_strong,
+                Subscript: self.on_subscript,
+                Superscript: self.on_superscript,
+                Underline: self.on_underline,
+            }
+        )
+
         self._footnotes = list()
 
     @staticmethod
@@ -283,7 +312,8 @@ class PandocToMarkdownDumper(DumperInterface):
                 inlines = item[0]
                 blockss = item[1]
                 with tag_quote(buffer, "dt"):
-                    buffer.write(self.dump_inlines(inlines))
+                    text = self.dump_inlines(inlines)
+                    buffer.write(text)
                 for blocks in blockss:
                     with tag_quote(buffer, "dd"):
                         buffer.write(self.dump_blocks(blocks))
@@ -355,12 +385,18 @@ class PandocToMarkdownDumper(DumperInterface):
     @override
     def on_raw_block(self, e: RawBlock) -> str:
         if e.format == "html":
-            if e.text.lower() in self._references_tags:
+            lower_text = e.text.lower()
+            if lower_text in self._references_tags:
                 return self.on_references()
+            elif lower_text in self._convert_raw_tags:
+                return self._convert_raw_tags[lower_text]
             else:
-                return e.text.replace("<", "&lt;").replace(">", "&gt;")
+                raise ValueError(f"Unsupported html text: '{e.text}'")
+                # return e.text.replace("<", "&lt;").replace(">", "&gt;")
+        elif e.format == "mediawiki":
+            raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
         else:
-            raise ValueError(f"Unsupported RawBlock's format: {e.format}")
+            raise ValueError(f"Unsupported RawBlock's format: '{e.format}'")
 
     def on_cell(self, e: Cell) -> str:
         # alignment = cell.alignment  # TODO
@@ -516,9 +552,15 @@ class PandocToMarkdownDumper(DumperInterface):
     @override
     def on_raw_inline(self, e: RawInline) -> str:
         if e.format == "html":
-            return e.text.replace("<", "&lt;").replace(">", "&gt;")
+            lower_text = e.text.lower()
+            if lower_text in self._convert_raw_tags:
+                return self._convert_raw_tags[lower_text]
+            else:
+                raise ValueError(f"Unsupported html text: '{e.text}'")
+                # return e.text.replace("<", "&lt;").replace(">", "&gt;")
         elif e.format == "mediawiki":
-            return e.text  # e.g. {{{ ... }}}
+            raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
+            # return e.text  # e.g. {{{ ... }}}
         else:
             raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 

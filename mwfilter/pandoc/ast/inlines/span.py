@@ -6,6 +6,7 @@ from typing import List
 from mwfilter.pandoc.ast.attr import Attr
 from mwfilter.pandoc.ast.inlines.inline import Inline
 from mwfilter.pandoc.ast.inlines.parser import parse_inlines
+from mwfilter.types.override import override
 
 
 @dataclass
@@ -16,6 +17,7 @@ class Span(Inline):
     inlines: List[Inline] = field(default_factory=list)
 
     @classmethod
+    @override
     def parse_object(cls, e):
         assert isinstance(e, list)
         assert len(e) == 2

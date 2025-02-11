@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
 
-from typing import Protocol, TypeVar, runtime_checkable
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
 
 _T = TypeVar("_T")
 
 
-@runtime_checkable
-class MetaValue[_T](Protocol):
+class MetaValue(ABC, Generic[_T]):
     content: _T
 
     @classmethod
-    def parse_object(cls, e): ...
+    @abstractmethod
+    def parse_object(cls, e):
+        raise NotImplementedError
 
-    def serialize(self): ...
+    @abstractmethod
+    def serialize(self):
+        raise NotImplementedError

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from typing import Protocol, runtime_checkable
+from abc import ABC, abstractmethod
 
 
-@runtime_checkable
-class Block(Protocol):
+class Block(ABC):
     @classmethod
-    def parse_object(cls, e): ...
+    @abstractmethod
+    def parse_object(cls, e):
+        raise NotImplementedError

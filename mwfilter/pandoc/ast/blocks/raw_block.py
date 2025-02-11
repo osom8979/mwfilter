@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 
 from mwfilter.pandoc.ast.blocks.block import Block
+from mwfilter.types.override import override
 
 
 @dataclass
@@ -13,6 +14,7 @@ class RawBlock(Block):
     text: str = field(default_factory=str)
 
     @classmethod
+    @override
     def parse_object(cls, e):
         assert isinstance(e, list)
         format_ = e[0]

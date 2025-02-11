@@ -10,6 +10,7 @@ from pypandoc import convert_text
 from mwfilter.pandoc.ast.blocks.block import Block
 from mwfilter.pandoc.ast.blocks.parser import parse_blocks
 from mwfilter.pandoc.ast.metas.meta import Meta
+from mwfilter.pandoc.ast.validator.mediawiki import mediawiki_validator
 
 
 @dataclass
@@ -21,7 +22,10 @@ class Pandoc:
     @classmethod
     def parse_text(cls, content: str, content_format="mediawiki"):
         json_text = convert_text(content, to="json", format=content_format)
-        return cls.parse_object(loads(json_text))
+        json_obj = loads(json_text)
+        if content_format == "mediawiki":
+            mediawiki_validator(json_obj)
+        return cls.parse_object(json_obj)
 
     @classmethod
     def parse_object(cls, e):

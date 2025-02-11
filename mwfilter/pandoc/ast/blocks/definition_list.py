@@ -7,6 +7,7 @@ from mwfilter.pandoc.ast.blocks.block import Block
 from mwfilter.pandoc.ast.blocks.parser import parse_blockss
 from mwfilter.pandoc.ast.inlines.inline import Inline
 from mwfilter.pandoc.ast.inlines.parser import parse_inlines
+from mwfilter.types.override import override
 
 
 @dataclass
@@ -20,6 +21,7 @@ class DefinitionList(Block):
     items: List[Tuple[List[Inline], List[List[Block]]]] = field(default_factory=list)
 
     @classmethod
+    @override
     def parse_object(cls, e):
         assert isinstance(e, list)
         return cls([(parse_inlines(i), parse_blockss(b)) for i, b in e])
