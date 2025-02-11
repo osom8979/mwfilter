@@ -79,6 +79,10 @@ DEFAULT_CONVERT_RAW_TAGS: Final[MappingProxyType[str, str]] = MappingProxyType(
     {
         "<b>": "<strong>",
         "</b>": "</strong>",
+        "<div>": "<div>",
+        "</div>": "</div>",
+        "<i>": "<em>",
+        "</i>": "</em>",
         "<strong>": "<strong>",
         "</strong>": "</strong>",
         "<small>": '<span style="font-size:0.8em">',
@@ -390,6 +394,10 @@ class PandocToMarkdownDumper(DumperInterface):
                 return self.on_references()
             elif lower_text in self._convert_raw_tags:
                 return self._convert_raw_tags[lower_text]
+            elif lower_text.startswith("<div") and lower_text.endswith(">"):
+                return "<div>"
+            elif lower_text.startswith("</div>"):
+                return "</div>"
             else:
                 raise ValueError(f"Unsupported html text: '{e.text}'")
                 # return e.text.replace("<", "&lt;").replace(">", "&gt;")

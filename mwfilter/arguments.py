@@ -39,6 +39,9 @@ List of namespace numbers:
 CMD_BUILD: Final[str] = "build"
 CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
 
+CMD_SITEMAP: Final[str] = "sitemap"
+CMD_SITEMAP_HELP: Final[str] = "Generate a sitemap page"
+
 CMD_CLEAN: Final[str] = "clean"
 CMD_CLEAN_HELP: Final[str] = "Clean cached files"
 
@@ -62,7 +65,7 @@ Builds as version 2, including both debugging and preview modes:
   {PROG} -D -v {CMD_BUILD} -a -m 2
 """
 
-CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_CLEAN
+CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_SITEMAP, CMD_CLEAN
 METHOD_VERSIONS: Final[Sequence[int]] = 1, 2
 
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
