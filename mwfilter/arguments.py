@@ -52,7 +52,7 @@ Download all main pages:
 Download all template pages:
   {PROG} -y -D {CMD_DOWN} -n 10 -a
 
-Download settings pages:
+Download exclude pages:
   {PROG} -y -D {CMD_DOWN} -E
 
 Build all wiki files:
@@ -70,8 +70,8 @@ DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
 DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
-DEFAULT_INDEX_PAGE_NAME: Final[str] = "Mwfilter:Index"
-DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
+# DEFAULT_INDEX_PAGE_NAME: Final[str] = "Mwfilter:Index"
+# DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
 DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0

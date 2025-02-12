@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="down-settings" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="down-exclude" type="PythonConfigurationType" factoryName="Python">
     <module name="mwfilter" />
     <option name="ENV_FILES" value="" />
     <option name="INTERPRETER_OPTIONS" value="" />

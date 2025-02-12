@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import json
 from dataclasses import dataclass, field
-from io import StringIO
 from re import match
-from typing import List, Optional
+from typing import List
 
-from pypandoc import convert_text
-
+from mwfilter.pandoc.ast.blocks.bullet_list import BulletList
+from mwfilter.pandoc.ast.blocks.plain import Plain
+from mwfilter.pandoc.ast.inlines.link import Link
+from mwfilter.pandoc.ast.inlines.str_ import Str
 from mwfilter.pandoc.ast.pandoc import Pandoc
 
 
@@ -18,61 +18,46 @@ class Exclude:
 
     @classmethod
     def from_mediawiki_content(cls, mediawiki_content: str):
-        pandoc = Pandoc.parse_text(mediawiki_content)
-        assert pandoc.blocks
-
-        info_json = convert_text(mediawiki_content, to="json", format="mediawiki")
-        info_obj = json.loads(info_json)
-        assert isinstance(info_obj, dict)
-        blocks = info_obj["blocks"]
-        assert isinstance(blocks, list)
-
         pages: List[str] = list()
         patterns: List[str] = list()
 
-        option_cursor: Optional[List[str]] = None
+        pandoc = Pandoc.parse_text(mediawiki_content)
+        for block in pandoc.blocks:
+            if not isinstance(block, BulletList):
+                raise TypeError(
+                    f"The {type(block).__name__} type is not allowed. "
+                    "The root block type must only allow BulletList."
+                )
 
-        for block in blocks:
-            assert isinstance(block, dict)
-            t = block["t"]
-            c = block["c"]
-            assert isinstance(t, str)
-            assert isinstance(c, list)
-            if t == "Header":
-                header_keyname = c[1][0]
-                assert isinstance(header_keyname, str)
-                assert header_keyname.islower()
-                match header_keyname:
-                    case "denypages":
-                        option_cursor = pages
-                    case "denypatterns":
-                        option_cursor = patterns
-                    case _:
-                        option_cursor = None
-            elif t == "BulletList":
-                if option_cursor is not None:
-                    for item in c:
-                        assert isinstance(item, list)
-                        assert len(item) == 1
-                        it = item[0]["t"]
-                        ic = item[0]["c"]
-                        assert isinstance(it, str)
-                        assert isinstance(ic, list)
-                        if it == "Plain":
-                            option_item_buffer = StringIO()
-                            for ic_item in ic:
-                                assert isinstance(ic_item, dict)
-                                ic_t = ic_item["t"]
-                                assert isinstance(ic_t, str)
-                                if ic_t == "Str":
-                                    ic_c = ic_item["c"]
-                                    assert isinstance(ic_c, str)
-                                    option_item_buffer.write(ic_c)
-                                elif ic_t == "Space":
-                                    option_item_buffer.write("_")
-                            option_cursor.append(option_item_buffer.getvalue())
-            else:
-                option_cursor = None
+            for bs in block.blockss:
+                if 1 != len(bs):
+                    raise ValueError(
+                        f"Blocks has {len(bs)} child elements. It must have exactly 1."
+                    )
+
+                b = bs[0]
+
+                if not isinstance(b, Plain):
+                    raise TypeError(
+                        f"The {type(b).__name__} type is not allowed. "
+                        "The element block type must only allow Plain."
+                    )
+
+                if 1 != len(b.inlines):
+                    raise ValueError(
+                        f"Inlines has {len(b.inlines)} child elements. "
+                        "It must have exactly 1."
+                    )
+
+                inline = b.inlines[0]
+
+                if isinstance(inline, Link):
+                    if inline.target.is_wikilink:
+                        pages.append(inline.target.url)
+                    else:
+                        raise ValueError(f"Unsupported link target: {inline.target}")
+                elif isinstance(inline, Str):
+                    patterns.append(inline.text)
 
         return cls(pages=pages, patterns=patterns)
 
