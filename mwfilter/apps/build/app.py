@@ -10,9 +10,9 @@ from type_serialize import deserialize
 
 from mwfilter.arguments import METHOD_VERSIONS
 from mwfilter.logging.logging import logger
-from mwfilter.mw.cache_dirs import pages_cache_dirpath, settings_filepath
+from mwfilter.mw.cache_dirs import pages_cache_dirpath, exclude_filepath
 from mwfilter.mw.convert_info import ConvertInfo
-from mwfilter.mw.settings import Settings
+from mwfilter.mw.exclude import Exclude
 from mwfilter.paths.expand_abspath import expand_abspath
 from mwfilter.system.ask import ask_continue, ask_overwrite
 
@@ -45,7 +45,7 @@ class BuildApp:
         self._verbose = args.verbose
         self._method_version = args.method_version
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
-        self._settings_yml = settings_filepath(args.cache_dir, self._hostname)
+        self._exclude_yml = exclude_filepath(args.cache_dir, self._hostname)
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
         self._all = args.all
         self._dry_run = args.dry_run
@@ -107,20 +107,20 @@ class BuildApp:
             mkdocs_yml = str(self._mkdocs_yml)
             raise FileNotFoundError(f"Not found mkdocs config file: '{mkdocs_yml}'")
 
-        if not self._settings_yml.is_file():
-            settings_yml = str(self._settings_yml)
-            raise FileNotFoundError(f"Not found settings file: '{settings_yml}'")
+        if not self._exclude_yml.is_file():
+            exclude_yml = str(self._exclude_yml)
+            raise FileNotFoundError(f"Not found exclude file: '{exclude_yml}'")
 
-        with self._settings_yml.open("rt", encoding="utf-8") as f:
-            settings = deserialize(yaml.safe_load(f), Settings)
-            assert isinstance(settings, Settings)
+        with self._exclude_yml.open("rt", encoding="utf-8") as f:
+            exclude = deserialize(yaml.safe_load(f), Exclude)
+            assert isinstance(exclude, Exclude)
 
         infos = self.create_convert_infos()
 
         source_infos = dict()
 
         for info in infos:
-            if not settings.filter_with_title(info.filename):
+            if not exclude.filter_with_title(info.filename):
                 logger.warning(f"Filtered page: '{info.filename}'")
                 continue
             if info.meta.redirect:

@@ -8,26 +8,27 @@ from typing import List, Optional
 
 from pypandoc import convert_text
 
+from mwfilter.pandoc.ast.pandoc import Pandoc
+
 
 @dataclass
-class Settings:
-    allow_pages: List[str] = field(default_factory=list)
-    allow_patterns: List[str] = field(default_factory=list)
-    deny_pages: List[str] = field(default_factory=list)
-    deny_patterns: List[str] = field(default_factory=list)
+class Exclude:
+    pages: List[str] = field(default_factory=list)
+    patterns: List[str] = field(default_factory=list)
 
     @classmethod
     def from_mediawiki_content(cls, mediawiki_content: str):
+        pandoc = Pandoc.parse_text(mediawiki_content)
+        assert pandoc.blocks
+
         info_json = convert_text(mediawiki_content, to="json", format="mediawiki")
         info_obj = json.loads(info_json)
         assert isinstance(info_obj, dict)
         blocks = info_obj["blocks"]
         assert isinstance(blocks, list)
 
-        allow_pages: List[str] = list()
-        allow_patterns: List[str] = list()
-        deny_pages: List[str] = list()
-        deny_patterns: List[str] = list()
+        pages: List[str] = list()
+        patterns: List[str] = list()
 
         option_cursor: Optional[List[str]] = None
 
@@ -42,14 +43,10 @@ class Settings:
                 assert isinstance(header_keyname, str)
                 assert header_keyname.islower()
                 match header_keyname:
-                    case "allowpages":
-                        option_cursor = allow_pages
-                    case "allowpatterns":
-                        option_cursor = allow_patterns
                     case "denypages":
-                        option_cursor = deny_pages
+                        option_cursor = pages
                     case "denypatterns":
-                        option_cursor = deny_patterns
+                        option_cursor = patterns
                     case _:
                         option_cursor = None
             elif t == "BulletList":
@@ -77,27 +74,14 @@ class Settings:
             else:
                 option_cursor = None
 
-        return cls(
-            allow_pages=allow_pages,
-            allow_patterns=allow_patterns,
-            deny_pages=deny_pages,
-            deny_patterns=deny_patterns,
-        )
+        return cls(pages=pages, patterns=patterns)
 
     def filter_with_title(self, title: str) -> bool:
-        if self.allow_pages and title in self.allow_pages:
-            return True
-
-        if self.allow_patterns:
-            for pattern in self.deny_patterns:
-                if match(pattern, title) is not None:
-                    return True
-
-        if self.deny_pages and title in self.deny_pages:
+        if self.pages and title in self.pages:
             return False
 
-        if self.deny_patterns:
-            for pattern in self.deny_patterns:
+        if self.patterns:
+            for pattern in self.patterns:
                 if match(pattern, title) is not None:
                     return False
 

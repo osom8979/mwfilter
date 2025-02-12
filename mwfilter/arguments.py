@@ -39,9 +39,6 @@ List of namespace numbers:
 CMD_BUILD: Final[str] = "build"
 CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
 
-CMD_SITEMAP: Final[str] = "sitemap"
-CMD_SITEMAP_HELP: Final[str] = "Generate a sitemap page"
-
 CMD_CLEAN: Final[str] = "clean"
 CMD_CLEAN_HELP: Final[str] = "Clean cached files"
 
@@ -53,7 +50,7 @@ Download all main pages:
   {PROG} -y -D {CMD_DOWN} -a
 
 Download all template pages:
-  {PROG} -y -D {CMD_DOWN} -N 10 -a
+  {PROG} -y -D {CMD_DOWN} -n 10 -a
 
 Download settings pages:
   {PROG} -y -D {CMD_DOWN} -E
@@ -65,7 +62,7 @@ Builds as version 2, including both debugging and preview modes:
   {PROG} -D -v {CMD_BUILD} -a -m 2
 """
 
-CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_SITEMAP, CMD_CLEAN
+CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_CLEAN
 METHOD_VERSIONS: Final[Sequence[int]] = 1, 2
 
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
@@ -74,7 +71,9 @@ DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
 DEFAULT_INDEX_PAGE_NAME: Final[str] = "Mwfilter:Index"
-DEFAULT_SETTINGS_PAGE_NAME: Final[str] = "Mwfilter:Settings"
+DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
+DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
+DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
 DEFAULT_METHOD_VERSION: Final[int] = 1
 
@@ -140,7 +139,7 @@ def add_down_parser(subparsers) -> None:
     )
     parser.add_argument(
         "--namespace",
-        "-N",
+        "-n",
         type=int,
         default=get_eval("MEDIAWIKI_NAMESPACE", DEFAULT_MEDIAWIKI_NAMESPACE),
         help=(
@@ -154,26 +153,36 @@ def add_down_parser(subparsers) -> None:
         default=get_eval("NO_EXPAND_TEMPLATES", False),
         help="Expand templates.",
     )
+
     parser.add_argument(
-        "--export-settings",
+        "--export-sitemap",
+        "-S",
+        action="store_true",
+        default=False,
+        help="Export sitemap file.",
+    )
+    parser.add_argument(
+        "--sitemap-page",
+        default=get_eval("SITEMAP_PAGE", DEFAULT_SITEMAP_PAGE),
+        help=f"The name of the sitemap page. (default: '{DEFAULT_SITEMAP_PAGE}')",
+    )
+
+    parser.add_argument(
+        "--export-exclude",
         "-E",
         action="store_true",
         default=False,
-        help="Export settings file.",
+        help="Export exclude file.",
     )
     parser.add_argument(
-        "--index-page-name",
-        default=get_eval("INDEX_PAGE_NAME", DEFAULT_INDEX_PAGE_NAME),
-        help=f"The name of the index page. (default: '{DEFAULT_INDEX_PAGE_NAME}')",
-    )
-    parser.add_argument(
-        "--settings-page-name",
-        default=get_eval("SETTINGS_PAGE_NAME", DEFAULT_SETTINGS_PAGE_NAME),
+        "--exclude-page",
+        default=get_eval("EXCLUDE_PAGE", DEFAULT_EXCLUDE_PAGE),
         help=(
-            "The name of the MediaWiki page containing project settings information. "
-            f"(default: '{DEFAULT_SETTINGS_PAGE_NAME}')"
+            "The name of the MediaWiki page that stores the list of page names to "
+            f"exclude. (default: '{DEFAULT_EXCLUDE_PAGE}')"
         ),
     )
+
     parser.add_argument(
         "--all",
         "-a",
@@ -292,7 +301,7 @@ def default_argument_parser() -> ArgumentParser:
     )
     parser.add_argument(
         "--ignore-errors",
-        "-I",
+        "-i",
         action="store_true",
         default=get_eval("IGNORE_ERRORS", False),
         help="Do not raise even if an error occurs.",

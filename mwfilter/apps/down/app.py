@@ -11,9 +11,9 @@ from mwclient.page import Page
 from type_serialize import serialize
 
 from mwfilter.logging.logging import logger
-from mwfilter.mw.cache_dirs import pages_cache_dirpath, settings_filepath
+from mwfilter.mw.cache_dirs import exclude_filepath, pages_cache_dirpath
+from mwfilter.mw.exclude import Exclude
 from mwfilter.mw.page_meta import PageMeta
-from mwfilter.mw.settings import Settings
 from mwfilter.system.ask import ask_overwrite
 
 
@@ -34,9 +34,12 @@ class DownApp:
         assert isinstance(args.password, (type(None), str))
         assert isinstance(args.namespace, int)
         assert isinstance(args.no_expand_templates, bool)
-        assert isinstance(args.export_settings, bool)
-        assert isinstance(args.index_page_name, str)
-        assert isinstance(args.settings_page_name, str)
+
+        assert isinstance(args.export_sitemap, bool)
+        assert isinstance(args.sitemap_page, str)
+        assert isinstance(args.export_exclude, bool)
+        assert isinstance(args.exclude_page, str)
+
         assert isinstance(args.all, bool)
         assert isinstance(args.pages, list)
 
@@ -48,13 +51,18 @@ class DownApp:
         self._password = args.password
         self._namespace = args.namespace
         self._no_expand_templates = args.no_expand_templates
-        self._export_settings = args.export_settings
-        self._index_page_name = args.index_page_name
-        self._settings_page_name = args.settings_page_name
+
+        self._export_sitemap = args.export_sitemap
+        self._sitemap_page = args.sitemap_page
+
+        self._export_exclude = args.export_exclude
+        self._exclude_page = args.exclude_page
+
         self._all = args.all
-        self._pages = list(str(page_name) for page_name in args.pages)
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
-        self._settings_path = settings_filepath(args.cache_dir, self._hostname)
+        self._exclude_path = exclude_filepath(args.cache_dir, self._hostname)
+
+        self._pages = list(str(page_name) for page_name in args.pages)
 
     @property
     def auth(self) -> Optional[Tuple[str, str]]:
@@ -122,13 +130,28 @@ class DownApp:
             page = self.request_page(site, page_name)
             self.download_page(page, i)
 
+    def export_sitemap(self, site: Site) -> None:
+        pass
+
+    def export_exclude(self, site: Site) -> None:
+        page = self.request_page(site, self._exclude_page)
+        settings_content = page.text(expandtemplates=True)
+        settings = Exclude.from_mediawiki_content(settings_content)
+        if ask_overwrite(self._exclude_path, force_yes=self._yes):
+            self._exclude_path.parent.mkdir(parents=True, exist_ok=True)
+            with self._exclude_path.open("wt") as f:
+                yaml.dump(serialize(settings), f)
+
     def run(self) -> None:
         if not self._endpoint_path:
             raise ValueError("The 'endpoint_path' argument is required")
         if self._namespace not in Site.default_namespaces:
             raise ValueError(f"Unexpected namespace number: {self._namespace}")
-        if self._export_settings and not self._settings_page_name:
-            raise ValueError("The 'settings_page_name' argument is required")
+
+        if self._export_sitemap and not self._sitemap_page:
+            raise ValueError("The 'sitemap_page' argument is required")
+        if self._export_exclude and not self._exclude_page:
+            raise ValueError("The 'exclude_page' argument is required")
 
         site = self.create_site()
 
@@ -138,12 +161,8 @@ class DownApp:
         if self._pages:
             self.download_pages(site, self._pages)
 
-        if self._export_settings:
-            assert self._settings_page_name
-            page = self.request_page(site, self._settings_page_name)
-            settings_content = page.text(expandtemplates=True)
-            settings = Settings.from_mediawiki_content(settings_content)
-            if ask_overwrite(self._settings_path, force_yes=self._yes):
-                self._settings_path.parent.mkdir(parents=True, exist_ok=True)
-                with self._settings_path.open("wt") as f:
-                    yaml.dump(serialize(settings), f)
+        if self._export_sitemap:
+            self.export_sitemap(site)
+
+        if self._export_exclude:
+            self.export_exclude(site)

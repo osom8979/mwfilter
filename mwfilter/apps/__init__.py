@@ -8,8 +8,7 @@ from typing import Callable, Dict
 from mwfilter.apps.build import build_main
 from mwfilter.apps.clear import clear_main
 from mwfilter.apps.down import down_main
-from mwfilter.apps.sitemap import sitemap_main
-from mwfilter.arguments import CMD_BUILD, CMD_CLEAN, CMD_DOWN, CMD_SITEMAP
+from mwfilter.arguments import CMD_BUILD, CMD_CLEAN, CMD_DOWN
 from mwfilter.logging.logging import logger
 
 
@@ -19,7 +18,6 @@ def cmd_apps() -> Dict[str, Callable[[Namespace], None]]:
         CMD_BUILD: build_main,
         CMD_CLEAN: clear_main,
         CMD_DOWN: down_main,
-        CMD_SITEMAP: sitemap_main,
     }
 
 
