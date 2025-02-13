@@ -91,6 +91,8 @@ DEFAULT_CONVERT_RAW_TAGS: Final[MappingProxyType[str, str]] = MappingProxyType(
         "</strong>": "</strong>",
         "<small>": '<span style="font-size:0.8em">',
         "</small>": "</span>",
+        "<u>": "<u>",
+        "</u>": "</u>",
     }
 )
 
