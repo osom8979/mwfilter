@@ -91,7 +91,8 @@ class BuildApp:
 
         for i, json_path in enumerate(json_filenames, start=1):
             filename = json_path.name.removesuffix(".json")
-            logger.debug(f"Read ({i}/{count}): {filename}")
+            if 2 <= self._verbose:
+                logger.debug(f"Read ({i}/{count}): {filename}")
 
             try:
                 wiki_path = json_path.parent / f"{filename}.wiki"

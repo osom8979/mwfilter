@@ -83,6 +83,10 @@ DEFAULT_CONVERT_RAW_TAGS: Final[MappingProxyType[str, str]] = MappingProxyType(
         "</div>": "</div>",
         "<i>": "<em>",
         "</i>": "</em>",
+        "<kbd>": "<kbd>",
+        "</kbd>": "</kbd>",
+        "<span>": "<span>",
+        "</span>": "</span>",
         "<strong>": "<strong>",
         "</strong>": "</strong>",
         "<small>": '<span style="font-size:0.8em">',
@@ -394,15 +398,17 @@ class PandocToMarkdownDumper(DumperInterface):
                 return self.on_references()
             elif lower_text in self._convert_raw_tags:
                 return self._convert_raw_tags[lower_text]
-            elif lower_text.startswith("<div") and lower_text.endswith(">"):
+            elif lower_text.startswith("<div ") and lower_text.endswith(">"):
                 return "<div>"
-            elif lower_text.startswith("</div>"):
-                return "</div>"
+            elif lower_text.startswith("<references ") and lower_text.endswith("/>"):
+                return str()  # e.g. '<references group="nb" />' in 'ANSI_escape_code'
             else:
-                raise ValueError(f"Unsupported html text: '{e.text}'")
-                # return e.text.replace("<", "&lt;").replace(">", "&gt;")
+                # raise ValueError(f"Unsupported html text: '{e.text}'")
+                return e.text.replace("<", "&lt;").replace(">", "&gt;")
         elif e.format == "mediawiki":
-            raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
+            # return e.text  # e.g. {{{ ... }}}
+            # raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
+            return e.text.replace("{", "&#123;").replace("}", "&#125;")
         else:
             raise ValueError(f"Unsupported RawBlock's format: '{e.format}'")
 
@@ -581,11 +587,12 @@ class PandocToMarkdownDumper(DumperInterface):
             if lower_text in self._convert_raw_tags:
                 return self._convert_raw_tags[lower_text]
             else:
-                raise ValueError(f"Unsupported html text: '{e.text}'")
-                # return e.text.replace("<", "&lt;").replace(">", "&gt;")
+                # raise ValueError(f"Unsupported html text: '{e.text}'")
+                return e.text.replace("<", "&lt;").replace(">", "&gt;")
         elif e.format == "mediawiki":
-            raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
             # return e.text  # e.g. {{{ ... }}}
+            # raise ValueError(f"Unsupported mediawiki text: '{e.text}'")
+            return e.text.replace("{", "&#123;").replace("}", "&#125;")
         else:
             raise ValueError(f"Unsupported RawBlock's format: {e.format}")
 
