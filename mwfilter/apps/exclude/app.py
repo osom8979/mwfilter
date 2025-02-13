@@ -34,7 +34,7 @@ class ExcludeApp:
         self._exclude_path = exclude_filepath(args.cache_dir, self._hostname)
 
     def run(self) -> None:
-        if self._exclude_page:
+        if not self._exclude_page:
             raise ValueError("The 'exclude_page' argument is required")
 
         wiki_path = self._pages_dir / f"{self._exclude_page}.wiki"

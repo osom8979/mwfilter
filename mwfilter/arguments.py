@@ -68,7 +68,14 @@ Builds as version 2, including both debugging and preview modes:
   {PROG} -D -v {CMD_BUILD} -a -m 2
 """
 
-CMDS: Final[Sequence[str]] = CMD_DOWN, CMD_BUILD, CMD_CLEAN
+CMDS: Final[Sequence[str]] = (
+    CMD_DOWN,
+    CMD_BUILD,
+    CMD_CLEAN,
+    CMD_EXCLUDE,
+    CMD_INDEX,
+    CMD_NAV,
+)
 METHOD_VERSIONS: Final[Sequence[int]] = 1, 2
 
 LOCAL_DOTENV_FILENAME: Final[str] = ".env.local"
@@ -77,11 +84,11 @@ DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
 DEFAULT_INDEX_PAGE: Final[str] = "Mwfilter:Index"
-DEFAULT_INDEX_MARKDOWN: Final[str] = "index.md"
+DEFAULT_INDEX_FILENAME: Final[str] = "index"
 DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
-DEFAULT_NAV_MARKDOWN: Final[str] = "nav.md"
+DEFAULT_NAV_FILENAME: Final[str] = "nav"
 DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
-DEFAULT_SITEMAP_MARKDOWN: Final[str] = "sitemap.md"
+DEFAULT_SITEMAP_FILENAME: Final[str] = "sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
 DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
@@ -229,35 +236,6 @@ def add_down_parser(subparsers) -> None:
     )
 
     parser.add_argument(
-        "--export-sitemap",
-        "-S",
-        action="store_true",
-        default=False,
-        help="Export sitemap file.",
-    )
-    parser.add_argument(
-        "--sitemap-page",
-        default=get_eval("SITEMAP_PAGE", DEFAULT_SITEMAP_PAGE),
-        help=f"The name of the sitemap page. (default: '{DEFAULT_SITEMAP_PAGE}')",
-    )
-
-    parser.add_argument(
-        "--export-exclude",
-        "-E",
-        action="store_true",
-        default=False,
-        help="Export exclude file.",
-    )
-    parser.add_argument(
-        "--exclude-page",
-        default=get_eval("EXCLUDE_PAGE", DEFAULT_EXCLUDE_PAGE),
-        help=(
-            "The name of the MediaWiki page that stores the list of page names to "
-            f"exclude. (default: '{DEFAULT_EXCLUDE_PAGE}')"
-        ),
-    )
-
-    parser.add_argument(
         "--all",
         "-a",
         "-A",
@@ -295,6 +273,57 @@ def add_exclude_parser(subparsers) -> None:
         default=False,
         help="Output to stdout instead of saving to a file.",
     )
+
+
+def add_index_parser(subparsers) -> None:
+    # noinspection SpellCheckingInspection
+    parser = subparsers.add_parser(
+        name=CMD_INDEX,
+        help=CMD_INDEX_HELP,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--index-page",
+        default=get_eval("INDEX_PAGE", DEFAULT_INDEX_PAGE),
+        help=f"The name of the index page. (default: '{DEFAULT_INDEX_PAGE}')",
+    )
+    parser.add_argument(
+        "--to",
+        "-t",
+        default=get_eval("INDEX_FILENAME", DEFAULT_INDEX_FILENAME),
+        help=f"The name of nav filename. (default: '{DEFAULT_INDEX_FILENAME}')",
+    )
+
+
+def add_nav_parser(subparsers) -> None:
+    # noinspection SpellCheckingInspection
+    parser = subparsers.add_parser(
+        name=CMD_NAV,
+        help=CMD_NAV_HELP,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--navigation-page",
+        default=get_eval("NAVIGATION_PAGE", DEFAULT_NAVIGATION_PAGE),
+        help=f"The name of the navigation page. (default: '{DEFAULT_NAVIGATION_PAGE}')",
+    )
+    parser.add_argument(
+        "--to",
+        "-t",
+        default=get_eval("NAV_FILENAME", DEFAULT_NAV_FILENAME),
+        help=f"The name of nav filename. (default: '{DEFAULT_NAV_FILENAME}')",
+    )
+
+
+# parser.add_argument(
+#     "--sitemap-page",
+#     default=get_eval("SITEMAP_PAGE", DEFAULT_SITEMAP_PAGE),
+#     help=f"The name of the sitemap page. (default: '{DEFAULT_SITEMAP_PAGE}')",
+# )
 
 
 def default_argument_parser() -> ArgumentParser:
@@ -405,6 +434,8 @@ def default_argument_parser() -> ArgumentParser:
     add_clean_parser(subparsers)
     add_down_parser(subparsers)
     add_exclude_parser(subparsers)
+    add_index_parser(subparsers)
+    add_nav_parser(subparsers)
 
     return parser
 
