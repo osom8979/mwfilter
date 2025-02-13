@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
-from typing import Final
 
-PAGES_DIRNAME: Final[str] = "pages"
-EXCLUDE_FILENAME: Final[str] = "exclude.yml"
+from mwfilter.arguments import DEFAULT_EXCLUDE_YML, DEFAULT_PAGES_DIRNAME
 
 
-def pages_cache_dirpath(cache_dir: str, hostname: str) -> Path:
-    return Path(cache_dir) / hostname / PAGES_DIRNAME
+def pages_cache_dirpath(
+    cache_dir: str,
+    hostname: str,
+    pages_dirname=DEFAULT_PAGES_DIRNAME,
+) -> Path:
+    return Path(cache_dir) / hostname / pages_dirname
 
 
-def exclude_filepath(cache_dir: str, hostname: str) -> Path:
-    return Path(cache_dir) / hostname / EXCLUDE_FILENAME
+def exclude_filepath(
+    cache_dir: str,
+    hostname: str,
+    exclude_filename=DEFAULT_EXCLUDE_YML,
+) -> Path:
+    return Path(cache_dir) / hostname / exclude_filename

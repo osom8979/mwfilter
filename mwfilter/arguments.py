@@ -12,6 +12,12 @@ from mwfilter.system.environ import get_typed_environ_value as get_eval
 PROG: Final[str] = "mwfilter"
 DESCRIPTION: Final[str] = "MediaWiki Filter"
 
+CMD_BUILD: Final[str] = "build"
+CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
+
+CMD_CLEAN: Final[str] = "clean"
+CMD_CLEAN_HELP: Final[str] = "Clean cached files"
+
 CMD_DOWN: Final[str] = "down"
 CMD_DOWN_HELP: Final[str] = "Download MediaWiki pages"
 CMD_DOWN_EPILOG = """
@@ -36,11 +42,14 @@ List of namespace numbers:
   15: Category talk
 """
 
-CMD_BUILD: Final[str] = "build"
-CMD_BUILD_HELP: Final[str] = "Convert MediaWiki files to Markdown files"
+CMD_EXCLUDE: Final[str] = "exclude"
+CMD_EXCLUDE_HELP: Final[str] = "Export exclude setting file"
 
-CMD_CLEAN: Final[str] = "clean"
-CMD_CLEAN_HELP: Final[str] = "Clean cached files"
+CMD_INDEX: Final[str] = "index"
+CMD_INDEX_HELP: Final[str] = "Export index file"
+
+CMD_NAV: Final[str] = "nav"
+CMD_NAV_HELP: Final[str] = "Export nav file"
 
 EPILOG = f"""
 Apply general debugging options:
@@ -51,9 +60,6 @@ Download all main pages:
 
 Download all template pages:
   {PROG} -y -D {CMD_DOWN} -n 10 -a
-
-Download exclude pages:
-  {PROG} -y -D {CMD_DOWN} -E
 
 Build all wiki files:
   {PROG} -y -D {CMD_BUILD}
@@ -70,10 +76,15 @@ DEFAULT_CACHE_DIRNAME: Final[str] = ".mwfilter"
 DEFAULT_MKDOCS_YML: Final[str] = "mkdocs.yml"
 DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
-# DEFAULT_INDEX_PAGE_NAME: Final[str] = "Mwfilter:Index"
-# DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
+DEFAULT_INDEX_PAGE: Final[str] = "Mwfilter:Index"
+DEFAULT_INDEX_MARKDOWN: Final[str] = "index.md"
+DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
+DEFAULT_NAV_MARKDOWN: Final[str] = "nav.md"
 DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
+DEFAULT_SITEMAP_MARKDOWN: Final[str] = "sitemap.md"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
+DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
+DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
 DEFAULT_METHOD_VERSION: Final[int] = 1
 
@@ -103,6 +114,69 @@ def add_dotenv_arguments(parser: ArgumentParser) -> None:
         default=get_eval("DOTENV_PATH", join(getcwd(), LOCAL_DOTENV_FILENAME)),
         metavar="file",
         help=f"Specifies the dot-env file (default: '{LOCAL_DOTENV_FILENAME}')",
+    )
+
+
+def add_build_parser(subparsers) -> None:
+    # noinspection SpellCheckingInspection
+    parser = subparsers.add_parser(
+        name=CMD_BUILD,
+        help=CMD_BUILD_HELP,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--method-version",
+        "-m",
+        "-M",
+        type=int,
+        default=get_eval("METHOD_VERSION", DEFAULT_METHOD_VERSION),
+        choices=METHOD_VERSIONS,
+        help=f"Build method version number. (default: '{DEFAULT_METHOD_VERSION}')",
+    )
+    parser.add_argument(
+        "--mkdocs-yml",
+        default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
+        help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
+    )
+    parser.add_argument(
+        "--all",
+        "-a",
+        "-A",
+        action="store_true",
+        default=False,
+        help="Build all cache files and directories.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Don't actually do anything, just show what would be done.",
+    )
+    parser.add_argument(
+        "pages",
+        nargs=REMAINDER,
+        help="Names of build pages.",
+    )
+
+
+def add_clean_parser(subparsers) -> None:
+    # noinspection SpellCheckingInspection
+    parser = subparsers.add_parser(
+        name=CMD_CLEAN,
+        help=CMD_CLEAN_HELP,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--all",
+        "-a",
+        "-A",
+        action="store_true",
+        default=False,
+        help="Remove all cache files and directories.",
     )
 
 
@@ -198,66 +272,28 @@ def add_down_parser(subparsers) -> None:
     )
 
 
-def add_build_parser(subparsers) -> None:
+def add_exclude_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
     parser = subparsers.add_parser(
-        name=CMD_BUILD,
-        help=CMD_BUILD_HELP,
+        name=CMD_EXCLUDE,
+        help=CMD_EXCLUDE_HELP,
         formatter_class=RawDescriptionHelpFormatter,
     )
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
-        "--method-version",
-        "-m",
-        "-M",
-        type=int,
-        default=get_eval("METHOD_VERSION", DEFAULT_METHOD_VERSION),
-        choices=METHOD_VERSIONS,
-        help=f"Build method version number. (default: '{DEFAULT_METHOD_VERSION}')",
+        "--exclude-page",
+        default=get_eval("EXCLUDE_PAGE", DEFAULT_EXCLUDE_PAGE),
+        help=(
+            "The name of the MediaWiki page that stores the list of page names to "
+            f"exclude. (default: '{DEFAULT_EXCLUDE_PAGE}')"
+        ),
     )
     parser.add_argument(
-        "--mkdocs-yml",
-        default=get_eval("MKDOCS_YML", DEFAULT_MKDOCS_YML),
-        help=f"Provide a specific MkDocs config. (default: '{DEFAULT_MKDOCS_YML}')",
-    )
-    parser.add_argument(
-        "--all",
-        "-a",
-        "-A",
+        "--stdout",
         action="store_true",
         default=False,
-        help="Build all cache files and directories.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        default=False,
-        help="Don't actually do anything, just show what would be done.",
-    )
-    parser.add_argument(
-        "pages",
-        nargs=REMAINDER,
-        help="Names of build pages.",
-    )
-
-
-def add_clean_parser(subparsers) -> None:
-    # noinspection SpellCheckingInspection
-    parser = subparsers.add_parser(
-        name=CMD_CLEAN,
-        help=CMD_CLEAN_HELP,
-        formatter_class=RawDescriptionHelpFormatter,
-    )
-    assert isinstance(parser, ArgumentParser)
-
-    parser.add_argument(
-        "--all",
-        "-a",
-        "-A",
-        action="store_true",
-        default=False,
-        help="Remove all cache files and directories.",
+        help="Output to stdout instead of saving to a file.",
     )
 
 
@@ -365,9 +401,10 @@ def default_argument_parser() -> ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest="cmd")
-    add_down_parser(subparsers)
     add_build_parser(subparsers)
     add_clean_parser(subparsers)
+    add_down_parser(subparsers)
+    add_exclude_parser(subparsers)
 
     return parser
 
