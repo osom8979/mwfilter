@@ -89,13 +89,14 @@ DEFAULT_INDEX_NAMESPACE: Final[int] = 0
 DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
 DEFAULT_NAV_FILENAME: Final[str] = "nav"
 DEFAULT_NAV_NAMESPACE: Final[int] = 0
+DEFAULT_NAV_METHOD_VERSION: Final[int] = 1
 DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
 DEFAULT_SITEMAP_FILENAME: Final[str] = "sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
 DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
-DEFAULT_METHOD_VERSION: Final[int] = 1
+DEFAULT_METHOD_VERSION: Final[int] = 2
 
 
 @lru_cache
@@ -301,6 +302,11 @@ def add_index_parser(subparsers) -> None:
         default=get_eval("INDEX_NAMESPACE", DEFAULT_INDEX_NAMESPACE),
         help=f"The name of index namespace. (default: '{DEFAULT_INDEX_NAMESPACE}')",
     )
+    parser.add_argument(
+        "--method-version",
+        type=int,
+        help="Build method version number.",
+    )
 
 
 def add_nav_parser(subparsers) -> None:
@@ -326,6 +332,12 @@ def add_nav_parser(subparsers) -> None:
         "--namespace",
         default=get_eval("NAV_NAMESPACE", DEFAULT_NAV_NAMESPACE),
         help=f"The name of nav namespace. (default: '{DEFAULT_NAV_NAMESPACE}')",
+    )
+    parser.add_argument(
+        "--method-version",
+        type=int,
+        default=get_eval("NAV_METHOD_VERSION", DEFAULT_NAV_METHOD_VERSION),
+        help=f"Build method version number. (default: {DEFAULT_NAV_METHOD_VERSION})",
     )
 
 

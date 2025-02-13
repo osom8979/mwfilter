@@ -30,7 +30,8 @@ class PageMeta:
     edit_time: Optional[datetime] = None
     last_rev_time: Optional[datetime] = None
 
-    _redirect_pagename: Optional[str] = None
+    method_version: Optional[int] = None
+    redirect_pagename: Optional[str] = None
 
     @classmethod
     def from_page(cls, page: Page):
@@ -85,11 +86,3 @@ class PageMeta:
     @property
     def markdown_filename(self) -> str:
         return self.filename + ".md"
-
-    @property
-    def redirect_pagename(self):
-        return self._redirect_pagename
-
-    @redirect_pagename.setter
-    def redirect_pagename(self, value: Optional[str]) -> None:
-        self._redirect_pagename = value

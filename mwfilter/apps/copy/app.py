@@ -3,7 +3,6 @@
 import json
 import os
 from argparse import Namespace
-from typing import Optional
 
 from type_serialize import deserialize, serialize
 
@@ -25,36 +24,18 @@ class CopyApp:
 
         # Subparser arguments
         assert isinstance(args.src, str)
-        assert isinstance(args.namespace, (type(None), int))
         assert isinstance(args.dest, str)
+        assert isinstance(args.namespace, (type(None), int))
+        assert isinstance(args.method_version, (type(None), int))
 
         self._hostname = args.hostname
         self._yes = args.yes
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
 
-        self._namespace = args.namespace
         self._src = args.src
         self._dest = args.dest
-
-    @classmethod
-    def from_args(
-        cls,
-        hostname: str,
-        cache_dir: str,
-        yes: bool,
-        src: str,
-        dest: str,
-        namespace: Optional[int] = None,
-    ):
-        args = Namespace(
-            hostname=hostname,
-            cache_dir=cache_dir,
-            yes=yes,
-            src=src,
-            dest=dest,
-            namespace=namespace,
-        )
-        return cls(args)
+        self._namespace = args.namespace
+        self._method_version = args.method_version
 
     def save(self, meta: PageMeta, content: str) -> None:
         meta_json = json.dumps(serialize(meta))
@@ -90,6 +71,7 @@ class CopyApp:
         json_text = json_path.read_bytes()
         json_obj = json.loads(json_text)
         meta = deserialize(json_obj, PageMeta)
+        assert isinstance(meta, PageMeta)
         content = wiki_path.read_text()
 
         meta.name = self._dest
@@ -98,6 +80,8 @@ class CopyApp:
         meta.base_name = self._dest
         if self._namespace is not None:
             meta.namespace = self._namespace
+        if self._method_version is not None:
+            meta.method_version = self._method_version
 
         self.save(meta, content)
         logger.info(f"Copy complete: '{self._src}' -> '{self._dest}'")

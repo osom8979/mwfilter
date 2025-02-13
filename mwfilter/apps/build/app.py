@@ -123,7 +123,7 @@ class BuildApp:
             if not exclude.filter_with_title(info.filename):
                 logger.warning(f"Filtered page: '{info.filename}'")
                 continue
-            if info.meta.redirect:
+            if info.meta.redirect and not info.meta.redirect_pagename:
                 info.meta.redirect_pagename = info.redirect_pagename
             source_infos[info.filename] = info
 
@@ -148,8 +148,12 @@ class BuildApp:
             if not ask_overwrite(markdown_path, force_yes=self._yes):
                 continue
 
-            markdown_path.parent.mkdir(parents=True, exist_ok=True)
-            markdown_text = info.as_markdown(self._method_version)
+            if info.meta.method_version is not None:
+                method_version = info.meta.method_version
+            else:
+                method_version = self._method_version
+
+            markdown_text = info.as_markdown(method_version)
 
             if not self._yes and self._debug and 2 <= self._verbose:
                 hr = "-" * 88
@@ -161,4 +165,5 @@ class BuildApp:
             if self._dry_run:
                 continue
 
+            markdown_path.parent.mkdir(parents=True, exist_ok=True)
             markdown_path.write_text(markdown_text)
