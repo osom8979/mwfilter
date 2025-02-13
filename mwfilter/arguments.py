@@ -97,6 +97,7 @@ DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
 DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
 DEFAULT_METHOD_VERSION: Final[int] = 2
+DEFAULT_START_INDEX: Final[int] = 0
 
 
 @lru_cache
@@ -144,6 +145,12 @@ def add_build_parser(subparsers) -> None:
         default=get_eval("METHOD_VERSION", DEFAULT_METHOD_VERSION),
         choices=METHOD_VERSIONS,
         help=f"Build method version number. (default: '{DEFAULT_METHOD_VERSION}')",
+    )
+    parser.add_argument(
+        "--start-index",
+        type=int,
+        default=get_eval("START_INDEX", DEFAULT_START_INDEX),
+        help=f"Build start index. (default: '{DEFAULT_START_INDEX}')",
     )
     parser.add_argument(
         "--mkdocs-yml",

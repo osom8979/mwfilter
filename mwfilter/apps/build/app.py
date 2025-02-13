@@ -37,6 +37,7 @@ class BuildApp:
         assert isinstance(args.all, bool)
         assert isinstance(args.dry_run, bool)
         assert isinstance(args.pages, list)
+        assert isinstance(args.start_index, int)
 
         self._hostname = args.hostname
         self._yes = args.yes
@@ -46,6 +47,7 @@ class BuildApp:
         self._method_version = args.method_version
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._exclude_yml = exclude_filepath(args.cache_dir, self._hostname)
+        self._start_index = args.start_index
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
         self._all = args.all
         self._dry_run = args.dry_run
@@ -140,9 +142,13 @@ class BuildApp:
         logger.info(f"Docs dir: '{docs_dir}'")
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
+        values = list(source_infos.values())
         source_count = len(source_infos)
-        for i, info in enumerate(source_infos.values(), start=1):
-            logger.info(f"Convert ({i}/{source_count}): {info.filename}")
+        max_index = source_count - 1
+
+        for i in range(self._start_index, source_count):
+            info = values[i]
+            logger.info(f"Convert ({i}/{max_index}): {info.filename}")
             markdown_path = docs_dirpath / info.markdown_filename
 
             if not ask_overwrite(markdown_path, force_yes=self._yes):
