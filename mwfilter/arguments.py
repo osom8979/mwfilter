@@ -85,8 +85,10 @@ DEFAULT_MEDIAWIKI_HOSTNAME: Final[str] = "localhost"
 DEFAULT_MEDIAWIKI_PATH: Final[str] = "/w/"
 DEFAULT_INDEX_PAGE: Final[str] = "Mwfilter:Index"
 DEFAULT_INDEX_FILENAME: Final[str] = "index"
+DEFAULT_INDEX_NAMESPACE: Final[int] = 0
 DEFAULT_NAVIGATION_PAGE: Final[str] = "Mwfilter:Navigation"
 DEFAULT_NAV_FILENAME: Final[str] = "nav"
+DEFAULT_NAV_NAMESPACE: Final[int] = 0
 DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
 DEFAULT_SITEMAP_FILENAME: Final[str] = "sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
@@ -285,15 +287,19 @@ def add_index_parser(subparsers) -> None:
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
-        "--index-page",
-        default=get_eval("INDEX_PAGE", DEFAULT_INDEX_PAGE),
+        "--src",
+        default=get_eval("INDEX_SRC", DEFAULT_INDEX_PAGE),
         help=f"The name of the index page. (default: '{DEFAULT_INDEX_PAGE}')",
     )
     parser.add_argument(
-        "--to",
-        "-t",
-        default=get_eval("INDEX_FILENAME", DEFAULT_INDEX_FILENAME),
-        help=f"The name of nav filename. (default: '{DEFAULT_INDEX_FILENAME}')",
+        "--dest",
+        default=get_eval("INDEX_DEST", DEFAULT_INDEX_FILENAME),
+        help=f"The name of index filename. (default: '{DEFAULT_INDEX_FILENAME}')",
+    )
+    parser.add_argument(
+        "--namespace",
+        default=get_eval("INDEX_NAMESPACE", DEFAULT_INDEX_NAMESPACE),
+        help=f"The name of index namespace. (default: '{DEFAULT_INDEX_NAMESPACE}')",
     )
 
 
@@ -307,23 +313,20 @@ def add_nav_parser(subparsers) -> None:
     assert isinstance(parser, ArgumentParser)
 
     parser.add_argument(
-        "--navigation-page",
-        default=get_eval("NAVIGATION_PAGE", DEFAULT_NAVIGATION_PAGE),
+        "--src",
+        default=get_eval("NAV_SRC", DEFAULT_NAVIGATION_PAGE),
         help=f"The name of the navigation page. (default: '{DEFAULT_NAVIGATION_PAGE}')",
     )
     parser.add_argument(
-        "--to",
-        "-t",
-        default=get_eval("NAV_FILENAME", DEFAULT_NAV_FILENAME),
+        "--dest",
+        default=get_eval("NAV_DEST", DEFAULT_NAV_FILENAME),
         help=f"The name of nav filename. (default: '{DEFAULT_NAV_FILENAME}')",
     )
-
-
-# parser.add_argument(
-#     "--sitemap-page",
-#     default=get_eval("SITEMAP_PAGE", DEFAULT_SITEMAP_PAGE),
-#     help=f"The name of the sitemap page. (default: '{DEFAULT_SITEMAP_PAGE}')",
-# )
+    parser.add_argument(
+        "--namespace",
+        default=get_eval("NAV_NAMESPACE", DEFAULT_NAV_NAMESPACE),
+        help=f"The name of nav namespace. (default: '{DEFAULT_NAV_NAMESPACE}')",
+    )
 
 
 def default_argument_parser() -> ArgumentParser:
