@@ -12,6 +12,7 @@ from type_serialize import serialize
 from mwfilter.logging.logging import logger
 from mwfilter.mw.cache_dirs import exclude_filepath, pages_cache_dirpath
 from mwfilter.mw.page_meta import PageMeta
+from mwfilter.mw.redirect import parse_redirect_pagename
 from mwfilter.system.ask import ask_overwrite
 
 
@@ -62,8 +63,14 @@ class DownApp:
         return site
 
     def page_to_meta(self, page: Page) -> Tuple[PageMeta, str]:
+        revisions = page.revisions()
+        assert isinstance(revisions, dict)
         meta = PageMeta.from_page(page)
+        meta.authors = list(set(rev["user"] for rev in revisions))
         content = page.text(expandtemplates=not self._no_expand_templates)
+        if meta.redirect:
+            redirect_pagename = parse_redirect_pagename(content)
+            meta.redirect_pagename = PageMeta.normalize_page_name(redirect_pagename)
         return meta, content
 
     def download_page(self, page: Page, i: int) -> None:

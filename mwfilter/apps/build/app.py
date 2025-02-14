@@ -126,8 +126,6 @@ class BuildApp:
             if not exclude.filter_with_title(info.filename):
                 logger.warning(f"Filtered page: '{info.filename}'")
                 continue
-            if info.meta.redirect and not info.meta.redirect_pagename:
-                info.meta.redirect_pagename = info.redirect_pagename
             source_infos[info.filename] = info
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:

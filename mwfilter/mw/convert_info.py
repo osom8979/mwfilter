@@ -5,8 +5,6 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from re import IGNORECASE, Pattern
-from re import compile as re_compile
 
 from pypandoc import convert_file
 from type_serialize import deserialize
@@ -14,13 +12,9 @@ from type_serialize import deserialize
 from mwfilter.arguments import DEFAULT_METHOD_VERSION
 from mwfilter.assets import get_markdown_filter_lua
 from mwfilter.mw.page_meta import PageMeta
+from mwfilter.mw.redirect import parse_redirect_pagename
 from mwfilter.pandoc.ast.pandoc import Pandoc
 from mwfilter.pandoc.markdown.dumper import PandocToMarkdownDumper
-
-REDIRECT_REGEX: Pattern[str] = re_compile(r"^#REDIRECT\s*\[\[(.*)]]", flags=IGNORECASE)
-"""
-https://www.mediawiki.org/wiki/Help:Redirects#Creating_a_redirect
-"""
 
 
 @dataclass
@@ -69,9 +63,9 @@ class ConvertInfo:
 
     @property
     def redirect_pagename(self) -> str:
-        if match := REDIRECT_REGEX.match(self.text.strip()):
-            return PageMeta.normalize_page_name(match.group(1))
-        else:
+        try:
+            return PageMeta.normalize_page_name(parse_redirect_pagename(self.text))
+        except ValueError:
             return str()
 
     @property

@@ -201,6 +201,9 @@ class PandocToMarkdownDumper(DumperInterface):
         if meta.redirect and meta.redirect_pagename:
             pandoc.meta["template"] = MetaString("redirect.html")
             pandoc.meta["redirect"] = MetaString("/" + meta.redirect_pagename)
+        if meta.authors:
+            authors = list(MetaString(author) for author in meta.authors)
+            pandoc.meta["authors"] = MetaList(authors)  # type: ignore[arg-type]
 
     def dump(self, pandoc: Pandoc, meta: Optional[PageMeta] = None) -> str:
         if meta is not None:
