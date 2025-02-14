@@ -2,8 +2,12 @@
 
 from re import IGNORECASE, Pattern
 from re import compile as re_compile
+from typing import Final
 
-REDIRECT_REGEX: Pattern[str] = re_compile(r"^#REDIRECT\s*\[\[(.*)]]", flags=IGNORECASE)
+REDIRECT_REGEX: Final[Pattern[str]] = re_compile(
+    r"^#(REDIRECT|넘겨주기)\s*\[\[(.*)]]",
+    flags=IGNORECASE,
+)
 """
 https://www.mediawiki.org/wiki/Help:Redirects#Creating_a_redirect
 """
