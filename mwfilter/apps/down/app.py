@@ -6,6 +6,7 @@ from argparse import Namespace
 from typing import Optional, Sequence, Tuple
 
 from mwclient import Site
+from mwclient.listing import RevisionsIterator
 from mwclient.page import Page
 from type_serialize import serialize
 
@@ -64,7 +65,7 @@ class DownApp:
 
     def page_to_meta(self, page: Page) -> Tuple[PageMeta, str]:
         revisions = page.revisions()
-        assert isinstance(revisions, dict)
+        assert isinstance(revisions, RevisionsIterator)
         meta = PageMeta.from_page(page)
         meta.authors = list(set(rev["user"] for rev in revisions))
         content = page.text(expandtemplates=not self._no_expand_templates)
