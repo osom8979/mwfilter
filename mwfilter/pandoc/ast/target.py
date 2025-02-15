@@ -50,7 +50,17 @@ class Target:
         buffer = StringIO()
         if not no_abspath:
             buffer.write("/")
-        buffer.write(urllib.parse.quote(link))
+
+        encoded_link = urllib.parse.quote(link)
+        if self.url.startswith("/"):
+            buffer.write(encoded_link)
+        else:
+            # -----------------------------------------------
+            # MediaWiki articles start with a capital letter.
+            buffer.write(encoded_link[0].upper())
+            buffer.write(encoded_link[1:])
+            # -----------------------------------------------
+
         if not no_extension:
             buffer.write(".md")
         if anchor:
