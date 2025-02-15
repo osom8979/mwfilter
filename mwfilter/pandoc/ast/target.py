@@ -54,5 +54,6 @@ class Target:
         if not no_extension:
             buffer.write(".md")
         if anchor:
+            buffer.write("#")
             buffer.write(anchor)
         return buffer.getvalue()
