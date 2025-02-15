@@ -15,5 +15,5 @@ https://www.mediawiki.org/wiki/Help:Redirects#Creating_a_redirect
 
 def parse_redirect_pagename(text: str) -> str:
     if match := REDIRECT_REGEX.match(text.strip()):
-        return match.group(1)
+        return match.group(2)
     raise ValueError(f"Invalid redirect page name: {text}")
