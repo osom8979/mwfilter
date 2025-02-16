@@ -203,6 +203,7 @@ class PandocToMarkdownDumper(DumperInterface):
             pandoc.meta["title"] = MetaString(meta.name)
         if meta.date:
             pandoc.meta["date"] = MetaString(meta.date)
+            pandoc.meta["lastmod"] = MetaString(meta.date)
         if meta.redirect and meta.redirect_pagename:
             pandoc.meta["template"] = MetaString("redirect.html")
             pandoc.meta["redirect"] = MetaString("/" + meta.redirect_pagename)
