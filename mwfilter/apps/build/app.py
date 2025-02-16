@@ -2,8 +2,9 @@
 
 import os
 from argparse import Namespace
-from typing import List
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
+from typing import List, NamedTuple, Optional
 
 import yaml
 from type_serialize import deserialize
@@ -13,8 +14,23 @@ from mwfilter.logging.logging import logger
 from mwfilter.mw.cache_dirs import pages_cache_dirpath, exclude_filepath
 from mwfilter.mw.convert_info import ConvertInfo
 from mwfilter.mw.exclude import Exclude
+from mwfilter.pandoc.markdown.dumper import PandocToMarkdownDumper
 from mwfilter.paths.expand_abspath import expand_abspath
 from mwfilter.system.ask import ask_continue, ask_overwrite
+
+
+class BuildTuple(NamedTuple):
+    i: int
+    max_index: int
+    docs_dirpath: Path
+    method_version: int
+    info: ConvertInfo
+    dumper: PandocToMarkdownDumper
+
+
+class ExcludeTuple(NamedTuple):
+    exclude: Exclude
+    info: ConvertInfo
 
 
 class BuildApp:
@@ -38,6 +54,7 @@ class BuildApp:
         assert isinstance(args.dry_run, bool)
         assert isinstance(args.pages, list)
         assert isinstance(args.start_index, int)
+        assert isinstance(args.jobs, int)
 
         self._hostname = args.hostname
         self._yes = args.yes
@@ -52,6 +69,7 @@ class BuildApp:
         self._all = args.all
         self._dry_run = args.dry_run
         self._pages = list(str(page_name) for page_name in args.pages)
+        self._jobs = args.jobs if 1 <= args.jobs else (cpu_count() * 2)
 
     @staticmethod
     def find_json_files_recursively(root_dir: Path) -> List[Path]:
@@ -91,8 +109,7 @@ class BuildApp:
 
         for i, json_path in enumerate(json_filenames, start=1):
             filename = json_path.name.removesuffix(".json")
-            if 2 <= self._verbose:
-                logger.debug(f"Read ({i}/{count}): {filename}")
+            logger.debug(f"Read ({i}/{count}): {filename}")
 
             try:
                 wiki_path = json_path.parent / f"{filename}.wiki"
@@ -104,6 +121,35 @@ class BuildApp:
                 else:
                     raise
         return result
+
+    @staticmethod
+    def build(item: BuildTuple) -> None:
+        i = item.i
+        max_index = item.max_index
+        docs_dirpath = item.docs_dirpath
+        method_version = item.method_version
+        info = item.info
+        dumper = item.dumper
+
+        logger.info(f"Convert ({i}/{max_index}): {info.filename}")
+
+        path = docs_dirpath / info.markdown_filename
+        info_ver = info.meta.method_version
+        ver = info_ver if info_ver is not None else method_version
+        text = info.as_markdown(ver, dumper=dumper)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+
+    @staticmethod
+    def exclude_filter(item: ExcludeTuple) -> Optional[ConvertInfo]:
+        exclude = item.exclude
+        info = item.info
+
+        if not exclude.filter_with_title(info.filename):
+            logger.warning(f"Filtered page: '{info.filename}'")
+            return None
+
+        return info
 
     def run(self) -> None:
         if not self._mkdocs_yml.is_file():
@@ -118,15 +164,26 @@ class BuildApp:
             exclude = deserialize(yaml.safe_load(f), Exclude)
             assert isinstance(exclude, Exclude)
 
-        infos = self.create_convert_infos()
+        exclude_args: List[ExcludeTuple] = list()
+        for si in self.create_convert_infos():
+            exclude_args.append(ExcludeTuple(exclude, si))
 
-        source_infos = dict()
+        infos = dict()
 
-        for info in infos:
-            if not exclude.filter_with_title(info.filename):
-                logger.warning(f"Filtered page: '{info.filename}'")
-                continue
-            source_infos[info.filename] = info
+        if 1 <= self._jobs:
+            with Pool(processes=self._jobs) as pool:
+                result = pool.map(self.exclude_filter, exclude_args)
+                assert isinstance(result, list)
+                for ci in result:
+                    if ci is None:
+                        continue
+                    assert isinstance(ci, ConvertInfo)
+                    infos[ci.filename] = ci
+        else:
+            for exclude_arg in exclude_args:
+                if ci := self.exclude_filter(exclude_arg):
+                    assert isinstance(ci, ConvertInfo)
+                    infos[ci.filename] = ci
 
         with self._mkdocs_yml.open("rt", encoding="utf-8") as f:
             mkdocs = yaml.safe_load(f)
@@ -141,34 +198,51 @@ class BuildApp:
         logger.info(f"Docs dir: '{docs_dir}'")
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
-        values = list(source_infos.values())
-        source_count = len(source_infos)
+        values = list(infos.values())
+        source_count = len(infos)
         max_index = source_count - 1
+        dumper = PandocToMarkdownDumper(list(infos.keys()), no_abspath=True)
 
-        for i in range(self._start_index, source_count):
-            info = values[i]
-            logger.info(f"Convert ({i}/{max_index}): {info.filename}")
-            markdown_path = docs_dirpath / info.markdown_filename
+        if self._yes and not self._dry_run:
+            build_args: List[BuildTuple] = list()
+            for i in range(self._start_index, source_count):
+                item = BuildTuple(
+                    i,
+                    max_index,
+                    docs_dirpath,
+                    self._method_version,
+                    values[i],
+                    dumper,
+                )
+                build_args.append(item)
 
-            if not ask_overwrite(markdown_path, force_yes=self._yes):
-                continue
+            with Pool(processes=self._jobs) as pool:
+                pool.map(self.build, build_args)
+        else:
+            for i in range(self._start_index, source_count):
+                info = values[i]
+                logger.info(f"Convert ({i}/{max_index}): {info.filename}")
+                markdown_path = docs_dirpath / info.markdown_filename
 
-            if info.meta.method_version is not None:
-                method_version = info.meta.method_version
-            else:
-                method_version = self._method_version
-
-            markdown_text = info.as_markdown(method_version)
-
-            if not self._yes and self._debug and 2 <= self._verbose:
-                hr = "-" * 88
-                print(f"{hr}\nMediaWiki content:\n{info.text}\n{hr}")
-                print(f"{hr}\nMarkdown content:\n{markdown_text}\n{hr}")
-                if not ask_continue():
+                if not ask_overwrite(markdown_path, force_yes=self._yes):
                     continue
 
-            if self._dry_run:
-                continue
+                if info.meta.method_version is not None:
+                    method_version = info.meta.method_version
+                else:
+                    method_version = self._method_version
 
-            markdown_path.parent.mkdir(parents=True, exist_ok=True)
-            markdown_path.write_text(markdown_text)
+                markdown_text = info.as_markdown(method_version, dumper=dumper)
+
+                if not self._yes and self._debug and 2 <= self._verbose:
+                    hr = "-" * 88
+                    print(f"{hr}\nMediaWiki content:\n{info.text}\n{hr}")
+                    print(f"{hr}\nMarkdown content:\n{markdown_text}\n{hr}")
+                    if not ask_continue():
+                        continue
+
+                if self._dry_run:
+                    continue
+
+                markdown_path.parent.mkdir(parents=True, exist_ok=True)
+                markdown_path.write_text(markdown_text)

@@ -172,6 +172,16 @@ def add_build_parser(subparsers) -> None:
         help="Don't actually do anything, just show what would be done.",
     )
     parser.add_argument(
+        "--jobs",
+        "-j",
+        type=int,
+        default=0,
+        help=(
+            "Allow N jobs at once; "
+            "If there is no argument, it is automatically selected."
+        ),
+    )
+    parser.add_argument(
         "pages",
         nargs=REMAINDER,
         help="Names of build pages.",

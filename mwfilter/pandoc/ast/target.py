@@ -3,6 +3,7 @@
 import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
+from typing import Optional, Set
 
 from mwfilter.strings.remove_slash import remove_prefix_slashes
 
@@ -27,7 +28,13 @@ class Target:
     def is_wikilink(self):
         return self.title == "wikilink"
 
-    def as_markdown_link(self, *, no_extension=False, no_abspath=False):
+    def as_markdown_link(
+        self,
+        *,
+        no_extension=False,
+        no_abspath=False,
+        filenames: Optional[Set[str]] = None,
+    ):
         if not self.is_wikilink:
             return self.url
 
@@ -46,6 +53,9 @@ class Target:
             assert len(link_items) == 2
             link = link_items[0]
             anchor = link_items[1]
+
+        if filenames and link.replace(" ", "_") not in filenames:
+            raise FileNotFoundError(f"Not found link: '{link}'")
 
         buffer = StringIO()
         if not no_abspath:

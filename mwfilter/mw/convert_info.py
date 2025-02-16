@@ -5,6 +5,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
+from typing import Optional
 
 from pypandoc import convert_file
 from type_serialize import deserialize
@@ -78,12 +79,17 @@ class ConvertInfo:
         buffer.write("\n")
         return buffer.getvalue()
 
-    def as_markdown(self, version=DEFAULT_METHOD_VERSION) -> str:
+    def as_markdown(
+        self,
+        version=DEFAULT_METHOD_VERSION,
+        *,
+        dumper: Optional[PandocToMarkdownDumper] = None,
+    ) -> str:
         match version:
             case 1:
                 return self.as_markdown_v1()
             case 2:
-                return self.as_markdown_v2()
+                return self.as_markdown_v2(dumper)
             case _:
                 raise ValueError(f"Unsupported method version: {version}")
 
@@ -95,8 +101,10 @@ class ConvertInfo:
             filters=[get_markdown_filter_lua()],
         )
 
-    def as_markdown_v2(self) -> str:
+    def as_markdown_v2(self, dumper: Optional[PandocToMarkdownDumper] = None) -> str:
+        if dumper is None:
+            dumper = PandocToMarkdownDumper(no_abspath=True)
+        assert dumper is not None
         with open(self.text_path, "rt") as f:
             pandoc = Pandoc.parse_text(f.read())
-            dumper = PandocToMarkdownDumper(no_abspath=True)
             return dumper.dump(pandoc, self.meta)

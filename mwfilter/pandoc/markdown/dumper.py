@@ -103,14 +103,15 @@ DEFAULT_CONVERT_RAW_TAGS: Final[MappingProxyType[str, str]] = MappingProxyType(
 
 
 class PandocToMarkdownDumper(DumperInterface):
-    _metas: MappingProxyType[Type[MetaValue], Callable[[MetaValue], str]]
-    _blocks: MappingProxyType[Type[Block], Callable[[Block], str]]
-    _inlines: MappingProxyType[Type[Inline], Callable[[Inline], str]]
+    _metas: Dict[Type[MetaValue], Callable[[MetaValue], str]]
+    _blocks: Dict[Type[Block], Callable[[Block], str]]
+    _inlines: Dict[Type[Inline], Callable[[Inline], str]]
 
     _footnotes: List[Note]
 
     def __init__(
         self,
+        filenames: Optional[Sequence[str]] = None,
         *,
         no_abspath=False,
         no_extension=False,
@@ -120,6 +121,8 @@ class PandocToMarkdownDumper(DumperInterface):
         references_tags: Optional[Sequence[str]] = DEFAULT_REFERENCES_LOWER_TAGS,
         convert_raw_tags: Optional[Mapping[str, str]] = DEFAULT_CONVERT_RAW_TAGS,
     ):
+        self._filenames = set(filenames if filenames else list())
+
         self._no_abspath = no_abspath
         # https://www.mkdocs.org/user-guide/writing-your-docs/#linking-to-pages
         # [Warning] Using absolute paths with links is not officially supported.
@@ -140,62 +143,56 @@ class PandocToMarkdownDumper(DumperInterface):
         self._footnotes = list()
 
     def _create_metas_callbacks(self):
-        return MappingProxyType(
-            {
-                MetaBlocks: self.on_meta_blocks,
-                MetaBool: self.on_meta_bool,
-                MetaInlines: self.on_meta_inlines,
-                MetaList: self.on_meta_list,
-                MetaMap: self.on_meta_map,
-                MetaString: self.on_meta_string,
-            }
-        )
+        return {
+            MetaBlocks: self.on_meta_blocks,
+            MetaBool: self.on_meta_bool,
+            MetaInlines: self.on_meta_inlines,
+            MetaList: self.on_meta_list,
+            MetaMap: self.on_meta_map,
+            MetaString: self.on_meta_string,
+        }
 
     def _create_blocks_callbacks(self):
-        return MappingProxyType(
-            {
-                BlockQuote: self.on_block_quote,
-                BulletList: self.on_bullet_list,
-                CodeBlock: self.on_code_block,
-                DefinitionList: self.on_definition_list,
-                Div: self.on_div,
-                Figure: self.on_figure,
-                Header: self.on_header,
-                HorizontalRule: self.on_horizontal_rule,
-                LineBlock: self.on_line_block,
-                OrderedList: self.on_ordered_list,
-                Para: self.on_para,
-                Plain: self.on_plain,
-                RawBlock: self.on_raw_block,
-                Table: self.on_table,
-            }
-        )
+        return {
+            BlockQuote: self.on_block_quote,
+            BulletList: self.on_bullet_list,
+            CodeBlock: self.on_code_block,
+            DefinitionList: self.on_definition_list,
+            Div: self.on_div,
+            Figure: self.on_figure,
+            Header: self.on_header,
+            HorizontalRule: self.on_horizontal_rule,
+            LineBlock: self.on_line_block,
+            OrderedList: self.on_ordered_list,
+            Para: self.on_para,
+            Plain: self.on_plain,
+            RawBlock: self.on_raw_block,
+            Table: self.on_table,
+        }
 
     def _create_inline_callbacks(self):
-        return MappingProxyType(
-            {
-                Cite: self.on_cite,
-                Code: self.on_code,
-                Emph: self.on_emph,
-                Image: self.on_image,
-                LineBreak: self.on_line_break,
-                Link: self.on_link,
-                Math: self.on_math,
-                Note: self.on_note,
-                Quoted: self.on_quoted,
-                RawInline: self.on_raw_inline,
-                SmallCaps: self.on_small_caps,
-                SoftBreak: self.on_soft_break,
-                Space: self.on_space,
-                Span: self.on_span,
-                Str: self.on_str,
-                Strikeout: self.on_strikeout,
-                Strong: self.on_strong,
-                Subscript: self.on_subscript,
-                Superscript: self.on_superscript,
-                Underline: self.on_underline,
-            }
-        )
+        return {
+            Cite: self.on_cite,
+            Code: self.on_code,
+            Emph: self.on_emph,
+            Image: self.on_image,
+            LineBreak: self.on_line_break,
+            Link: self.on_link,
+            Math: self.on_math,
+            Note: self.on_note,
+            Quoted: self.on_quoted,
+            RawInline: self.on_raw_inline,
+            SmallCaps: self.on_small_caps,
+            SoftBreak: self.on_soft_break,
+            Space: self.on_space,
+            Span: self.on_span,
+            Str: self.on_str,
+            Strikeout: self.on_strikeout,
+            Strong: self.on_strong,
+            Subscript: self.on_subscript,
+            Superscript: self.on_superscript,
+            Underline: self.on_underline,
+        }
 
     @staticmethod
     def update_page_meta(pandoc: Pandoc, meta: PageMeta):
@@ -410,7 +407,7 @@ class PandocToMarkdownDumper(DumperInterface):
             elif lower_text in self._convert_raw_tags:
                 return self._convert_raw_tags[lower_text]
             elif lower_text.startswith("<div ") and lower_text.endswith(">"):
-                return "<div>"
+                return e.text
             elif lower_text.startswith("<references ") and lower_text.endswith("/>"):
                 return str()  # e.g. '<references group="nb" />' in 'ANSI_escape_code'
             else:
@@ -559,15 +556,21 @@ class PandocToMarkdownDumper(DumperInterface):
     def on_link(self, e: Link) -> str:
         if not e.attr.is_empty:
             raise NotImplementedError
+
         buffer = StringIO()
-        buffer.write("[")
-        buffer.write(self.dump_inlines(e.inlines))
-        link = e.target.as_markdown_link(
-            no_extension=self._no_extension,
-            no_abspath=self._no_abspath,
-        )
-        buffer.write(f"]({link})")
-        return buffer.getvalue()
+        text = self.dump_inlines(e.inlines)
+        try:
+            link = e.target.as_markdown_link(
+                no_extension=self._no_extension,
+                no_abspath=self._no_abspath,
+                filenames=self._filenames,
+            )
+            buffer.write(f"[{text}]({link})")
+        except FileNotFoundError:
+            with tag_quote(buffer, "del", newline=None, sytle="color: red;"):
+                buffer.write(text)
+        finally:
+            return buffer.getvalue()
 
     @override
     def on_math(self, e: Math) -> str:
@@ -678,9 +681,12 @@ class PandocToMarkdownDumper(DumperInterface):
         if not self._footnotes:
             return str()
 
-        buffer = StringIO()
-        for i, note in enumerate(self._footnotes):
-            buffer.write(f"[^{i}]: ")
-            buffer.write(strip_tags(self.dump_blocks(note.blocks)).strip())
-            buffer.write("\n")
-        return buffer.getvalue()
+        try:
+            buffer = StringIO()
+            for i, note in enumerate(self._footnotes):
+                buffer.write(f"[^{i}]: ")
+                buffer.write(strip_tags(self.dump_blocks(note.blocks)).strip())
+                buffer.write("\n")
+            return buffer.getvalue()
+        finally:
+            self._footnotes.clear()
