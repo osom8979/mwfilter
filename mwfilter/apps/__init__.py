@@ -7,9 +7,10 @@ from typing import Callable, Dict
 
 from mwfilter.apps.build import build_main
 from mwfilter.apps.clear import clear_main
-from mwfilter.apps.copy import copy_main
 from mwfilter.apps.down import down_main
 from mwfilter.apps.exclude import exclude_main
+from mwfilter.apps.index import index_main
+from mwfilter.apps.nav import nav_main
 from mwfilter.arguments import (
     CMD_BUILD,
     CMD_CLEAN,
@@ -28,8 +29,8 @@ def cmd_apps() -> Dict[str, Callable[[Namespace], None]]:
         CMD_CLEAN: clear_main,
         CMD_DOWN: down_main,
         CMD_EXCLUDE: exclude_main,
-        CMD_INDEX: copy_main,
-        CMD_NAV: copy_main,
+        CMD_INDEX: index_main,
+        CMD_NAV: nav_main,
     }
 
 
