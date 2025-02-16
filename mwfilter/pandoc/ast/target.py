@@ -54,23 +54,22 @@ class Target:
             link = link_items[0]
             anchor = link_items[1]
 
-        if filenames and link.replace(" ", "_") not in filenames:
+        if self.url.startswith("/"):
+            filename = link
+        else:
+            # -----------------------------------------------
+            # MediaWiki articles start with a capital letter.
+            filename = link[0].upper() + link[1:]
+            # -----------------------------------------------
+
+        filename = filename.replace(" ", "_")
+        if filenames and filename not in filenames:
             raise FileNotFoundError(f"Not found link: '{link}'")
 
         buffer = StringIO()
         if not no_abspath:
             buffer.write("/")
-
-        encoded_link = urllib.parse.quote(link)
-        if self.url.startswith("/"):
-            buffer.write(encoded_link)
-        else:
-            # -----------------------------------------------
-            # MediaWiki articles start with a capital letter.
-            buffer.write(encoded_link[0].upper())
-            buffer.write(encoded_link[1:])
-            # -----------------------------------------------
-
+        buffer.write(urllib.parse.quote(filename))
         if not no_extension:
             buffer.write(".md")
         if anchor:
