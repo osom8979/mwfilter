@@ -567,7 +567,7 @@ class PandocToMarkdownDumper(DumperInterface):
             )
             buffer.write(f"[{text}]({link})")
         except FileNotFoundError:
-            with tag_quote(buffer, "del", newline=None, sytle="color: red;"):
+            with tag_quote(buffer, "span", newline=None):
                 buffer.write(text)
         finally:
             return buffer.getvalue()
