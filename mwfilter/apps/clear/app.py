@@ -28,5 +28,8 @@ class ClearApp:
         if not self._all:
             remove_dir = remove_dir / self._hostname
 
-        logger.info(f"Clear cache directory: '{str(remove_dir)}'")
-        rmtree(remove_dir, ignore_errors=self._ignore_errors)
+        if remove_dir.is_dir():
+            logger.info(f"Clear cache directory: '{str(remove_dir)}'")
+            rmtree(remove_dir, ignore_errors=self._ignore_errors)
+        else:
+            logger.warning(f"Not a cache directory: '{str(remove_dir)}'")
