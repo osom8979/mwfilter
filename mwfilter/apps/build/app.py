@@ -131,12 +131,16 @@ class BuildApp:
         info = item.info
         dumper = item.dumper
 
-        logger.info(f"Convert ({i}/{max_index}): {info.filename}")
+        logger.info(f"Converting ({i}/{max_index}) {info.filename} ...")
 
         path = docs_dirpath / info.markdown_filename
         info_ver = info.meta.method_version
         ver = info_ver if info_ver is not None else method_version
-        text = info.as_markdown(ver, dumper=dumper)
+        try:
+            text = info.as_markdown(ver, dumper=dumper)
+        except BaseException as e:
+            logger.error(f"Convert error ({i}/{max_index}) {info.filename} ... {e}")
+            raise
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
