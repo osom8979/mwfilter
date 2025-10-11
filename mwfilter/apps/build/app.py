@@ -205,7 +205,7 @@ class BuildApp:
         values = list(infos.values())
         source_count = len(infos)
         max_index = source_count - 1
-        dumper = PandocToMarkdownDumper(list(infos.keys()), no_abspath=True)
+        filenames = list(infos.keys())
 
         if self._yes and not self._dry_run:
             build_args: List[BuildTuple] = list()
@@ -216,7 +216,7 @@ class BuildApp:
                     docs_dirpath,
                     self._method_version,
                     values[i],
-                    dumper,
+                    PandocToMarkdownDumper(filenames, no_abspath=True),
                 )
                 build_args.append(item)
 
@@ -236,6 +236,7 @@ class BuildApp:
                 else:
                     method_version = self._method_version
 
+                dumper = PandocToMarkdownDumper(filenames, no_abspath=True)
                 markdown_text = info.as_markdown(method_version, dumper=dumper)
 
                 if not self._yes and self._debug and 2 <= self._verbose:
