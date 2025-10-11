@@ -25,7 +25,7 @@ class BuildTuple(NamedTuple):
     docs_dirpath: Path
     method_version: int
     info: ConvertInfo
-    dumper: PandocToMarkdownDumper
+    filenames: List[str]
 
 
 class ExcludeTuple(NamedTuple):
@@ -129,7 +129,8 @@ class BuildApp:
         docs_dirpath = item.docs_dirpath
         method_version = item.method_version
         info = item.info
-        dumper = item.dumper
+        filenames = item.filenames
+        dumper = PandocToMarkdownDumper(filenames, no_abspath=True)
 
         logger.info(f"Converting ({i}/{max_index}) {info.filename} ...")
 
@@ -216,7 +217,7 @@ class BuildApp:
                     docs_dirpath,
                     self._method_version,
                     values[i],
-                    PandocToMarkdownDumper(filenames, no_abspath=True),
+                    filenames,
                 )
                 build_args.append(item)
 
