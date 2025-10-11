@@ -36,13 +36,18 @@ class PageMeta:
 
     @classmethod
     def from_page(cls, page: Page):
+        try:
+            touched = datetime(*page.touched[:6])
+        except:  # noqa
+            touched = datetime.now()
+
         return cls(
             namespace=page.namespace,
             name=page.name,
             page_title=page.page_title,
             base_title=page.base_title,
             base_name=page.base_name,
-            touched=datetime(*page.touched[:6]),
+            touched=touched,
             revision=page.revision,
             exists=page.exists,
             length=page.length,
