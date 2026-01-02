@@ -33,6 +33,10 @@ class ExcludeTuple(NamedTuple):
     info: ConvertInfo
 
 
+class BuildError(Exception):
+    pass
+
+
 class BuildApp:
     def __init__(self, args: Namespace):
         assert isinstance(args.hostname, str)
@@ -140,8 +144,7 @@ class BuildApp:
         try:
             text = info.as_markdown(ver, dumper=dumper)
         except BaseException as e:
-            logger.error(f"Convert error ({i}/{max_index}) {info.filename} ... {e}")
-            raise
+            raise BuildError(f"Convert error ({i}/{max_index}) {info.filename}") from e
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
 
