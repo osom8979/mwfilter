@@ -45,6 +45,9 @@ List of namespace numbers:
 CMD_EXCLUDE: Final[str] = "exclude"
 CMD_EXCLUDE_HELP: Final[str] = "Export exclude setting file"
 
+CMD_IMAGE: Final[str] = "image"
+CMD_IMAGE_HELP: Final[str] = "Download images from MediaWiki"
+
 CMD_INDEX: Final[str] = "index"
 CMD_INDEX_HELP: Final[str] = "Export index file"
 
@@ -73,6 +76,7 @@ CMDS: Final[Sequence[str]] = (
     CMD_BUILD,
     CMD_CLEAN,
     CMD_EXCLUDE,
+    CMD_IMAGE,
     CMD_INDEX,
     CMD_NAV,
 )
@@ -94,6 +98,8 @@ DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
 DEFAULT_SITEMAP_FILENAME: Final[str] = "sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
+DEFAULT_IMAGE_PAGE: Final[str] = "Mwfilter:Images"
+DEFAULT_IMAGE_OUTPUT_DIR: Final[str] = "docs/assets/images"
 DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
 DEFAULT_MEDIAWIKI_NAMESPACE: Final[int] = 0
 DEFAULT_METHOD_VERSION: Final[int] = 2
@@ -295,6 +301,61 @@ def add_exclude_parser(subparsers) -> None:
     )
 
 
+def add_image_parser(subparsers) -> None:
+    # noinspection SpellCheckingInspection
+    parser = subparsers.add_parser(
+        name=CMD_IMAGE,
+        help=CMD_IMAGE_HELP,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+    assert isinstance(parser, ArgumentParser)
+
+    parser.add_argument(
+        "--endpoint-path",
+        default=get_eval("ENDPOINT_PATH", DEFAULT_MEDIAWIKI_PATH),
+        help=(
+            "The API endpoint location on a MediaWiki site depends on the "
+            "configurable $wgScriptPath. Must contain a trailing slash ('/'). "
+            f"(default: '{DEFAULT_MEDIAWIKI_PATH}')"
+        ),
+    )
+    parser.add_argument(
+        "--username",
+        "-u",
+        default=get_eval("MEDIAWIKI_USERNAME"),
+        help="If API authentication is required, this is a UTF-8 encoded username.",
+    )
+    parser.add_argument(
+        "--password",
+        "-p",
+        default=get_eval("MEDIAWIKI_PASSWORD"),
+        help="If API authentication is required, this is a UTF-8 encoded password.",
+    )
+    parser.add_argument(
+        "--image-page",
+        default=get_eval("IMAGE_PAGE", DEFAULT_IMAGE_PAGE),
+        help=(
+            "The name of the MediaWiki page that stores the list of image names to "
+            f"download. (default: '{DEFAULT_IMAGE_PAGE}')"
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        "-o",
+        default=get_eval("IMAGE_OUTPUT_DIR", DEFAULT_IMAGE_OUTPUT_DIR),
+        help=(
+            "Directory to save downloaded images. "
+            f"(default: '{DEFAULT_IMAGE_OUTPUT_DIR}')"
+        ),
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        default=False,
+        help="Output image list to stdout instead of downloading.",
+    )
+
+
 def add_index_parser(subparsers) -> None:
     # noinspection SpellCheckingInspection
     parser = subparsers.add_parser(
@@ -466,6 +527,7 @@ def default_argument_parser() -> ArgumentParser:
     add_clean_parser(subparsers)
     add_down_parser(subparsers)
     add_exclude_parser(subparsers)
+    add_image_parser(subparsers)
     add_index_parser(subparsers)
     add_nav_parser(subparsers)
 
