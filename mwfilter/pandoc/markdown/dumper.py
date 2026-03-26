@@ -577,6 +577,14 @@ class PandocToMarkdownDumper(DumperInterface):
 
         buffer = StringIO()
         text = self.dump_inlines(e.inlines)
+
+        if e.target.is_wikilink and self._image_names:
+            image_name = self._extract_image_name(e.target.url)
+            if image_name in self._image_names:
+                src = f"{self._image_output_dir}/{image_name}"
+                buffer.write(f"[{text}]({src})")
+                return buffer.getvalue()
+
         try:
             link = e.target.as_markdown_link(
                 no_extension=self._no_extension,
