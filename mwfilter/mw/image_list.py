@@ -10,6 +10,15 @@ from mwfilter.pandoc.ast.inlines.str_ import Str
 from mwfilter.pandoc.ast.pandoc import Pandoc
 
 FILE_NAMESPACE_PREFIX = "File:"
+MEDIA_NAMESPACE_PREFIX = "Media:"
+
+
+def strip_namespace_prefix(name: str) -> str:
+    if name.startswith(FILE_NAMESPACE_PREFIX):
+        return name[len(FILE_NAMESPACE_PREFIX) :]
+    if name.startswith(MEDIA_NAMESPACE_PREFIX):
+        return name[len(MEDIA_NAMESPACE_PREFIX) :]
+    return name
 
 
 @dataclass
@@ -51,14 +60,8 @@ class ImageList:
                 inline = b.inlines[0]
 
                 if isinstance(inline, Link):
-                    url = inline.target.url
-                    if url.startswith(FILE_NAMESPACE_PREFIX):
-                        url = url[len(FILE_NAMESPACE_PREFIX) :]
-                    images.append(url)
+                    images.append(strip_namespace_prefix(inline.target.url))
                 elif isinstance(inline, Str):
-                    text = inline.text
-                    if text.startswith(FILE_NAMESPACE_PREFIX):
-                        text = text[len(FILE_NAMESPACE_PREFIX) :]
-                    images.append(text)
+                    images.append(strip_namespace_prefix(inline.text))
 
         return cls(images=images)

@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Final, List, Mapping, Optional, Sequence
 
 import yaml
 
-from mwfilter.mw.image_list import FILE_NAMESPACE_PREFIX
+from mwfilter.mw.image_list import strip_namespace_prefix
 from mwfilter.mw.page_meta import PageMeta
 
 # AST: Blocks
@@ -542,9 +542,7 @@ class PandocToMarkdownDumper(DumperInterface):
 
     @staticmethod
     def _extract_image_name(url: str) -> str:
-        if url.startswith(FILE_NAMESPACE_PREFIX):
-            return url[len(FILE_NAMESPACE_PREFIX) :]
-        return url
+        return strip_namespace_prefix(url)
 
     @override
     def on_image(self, e: Image) -> str:
