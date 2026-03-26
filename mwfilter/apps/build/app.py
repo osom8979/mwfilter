@@ -11,9 +11,11 @@ from type_serialize import deserialize
 
 from mwfilter.arguments import METHOD_VERSIONS
 from mwfilter.logging.logging import logger
+from mwfilter.arguments import DEFAULT_IMAGE_PAGE
 from mwfilter.mw.cache_dirs import pages_cache_dirpath, exclude_filepath
 from mwfilter.mw.convert_info import ConvertInfo
 from mwfilter.mw.exclude import Exclude
+from mwfilter.mw.image_list import ImageList
 from mwfilter.pandoc.markdown.dumper import PandocToMarkdownDumper
 from mwfilter.paths.expand_abspath import expand_abspath
 from mwfilter.system.ask import ask_continue, ask_overwrite
@@ -26,6 +28,7 @@ class BuildTuple(NamedTuple):
     method_version: int
     info: ConvertInfo
     filenames: List[str]
+    image_names: List[str]
 
 
 class ExcludeTuple(NamedTuple):
@@ -134,7 +137,12 @@ class BuildApp:
         method_version = item.method_version
         info = item.info
         filenames = item.filenames
-        dumper = PandocToMarkdownDumper(filenames, no_abspath=True)
+        image_names = item.image_names
+        dumper = PandocToMarkdownDumper(
+            filenames,
+            no_abspath=True,
+            image_names=image_names,
+        )
 
         logger.info(f"Converting ({i}/{max_index}) {info.filename} ...")
 
@@ -171,6 +179,14 @@ class BuildApp:
         with self._exclude_yml.open("rt", encoding="utf-8") as f:
             exclude = deserialize(yaml.safe_load(f), Exclude)
             assert isinstance(exclude, Exclude)
+
+        image_names: List[str] = list()
+        image_wiki_path = self._pages_dir / f"{DEFAULT_IMAGE_PAGE}.wiki"
+        if image_wiki_path.is_file():
+            mediawiki_content = image_wiki_path.read_text()
+            image_list = ImageList.from_mediawiki_content(mediawiki_content)
+            image_names = image_list.images
+            logger.info(f"Loaded {len(image_names)} image names from whitelist")
 
         exclude_args: List[ExcludeTuple] = list()
         for si in self.create_convert_infos():
@@ -221,6 +237,7 @@ class BuildApp:
                     self._method_version,
                     values[i],
                     filenames,
+                    image_names,
                 )
                 build_args.append(item)
 
@@ -240,7 +257,11 @@ class BuildApp:
                 else:
                     method_version = self._method_version
 
-                dumper = PandocToMarkdownDumper(filenames, no_abspath=True)
+                dumper = PandocToMarkdownDumper(
+                    filenames,
+                    no_abspath=True,
+                    image_names=image_names,
+                )
                 markdown_text = info.as_markdown(method_version, dumper=dumper)
 
                 if not self._yes and self._debug and 2 <= self._verbose:

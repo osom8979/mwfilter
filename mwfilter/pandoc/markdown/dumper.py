@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Final, List, Mapping, Optional, Sequence
 
 import yaml
 
+from mwfilter.mw.image_list import FILE_NAMESPACE_PREFIX
 from mwfilter.mw.page_meta import PageMeta
 
 # AST: Blocks
@@ -120,6 +121,8 @@ class PandocToMarkdownDumper(DumperInterface):
         no_references_to_footnotes=False,
         references_tags: Optional[Sequence[str]] = DEFAULT_REFERENCES_LOWER_TAGS,
         convert_raw_tags: Optional[Mapping[str, str]] = DEFAULT_CONVERT_RAW_TAGS,
+        image_names: Optional[Sequence[str]] = None,
+        image_output_dir: Optional[str] = None,
     ):
         self._filenames = set(filenames if filenames else list())
 
@@ -137,6 +140,10 @@ class PandocToMarkdownDumper(DumperInterface):
         self._no_references_to_footnotes = no_references_to_footnotes
         self._references_tags = list(references_tags if references_tags else list())
         self._convert_raw_tags = dict(convert_raw_tags if convert_raw_tags else dict())
+        self._image_names = set(image_names if image_names else list())
+        self._image_output_dir = (
+            image_output_dir if image_output_dir else "assets/images"
+        )
         self._metas = self._create_metas_callbacks()
         self._blocks = self._create_blocks_callbacks()
         self._inlines = self._create_inline_callbacks()
@@ -533,8 +540,21 @@ class PandocToMarkdownDumper(DumperInterface):
             buffer.write(self.dump_inlines(e.inlines))
         return buffer.getvalue()
 
+    @staticmethod
+    def _extract_image_name(url: str) -> str:
+        if url.startswith(FILE_NAMESPACE_PREFIX):
+            return url[len(FILE_NAMESPACE_PREFIX) :]
+        return url
+
     @override
     def on_image(self, e: Image) -> str:
+        if self._image_names:
+            image_name = self._extract_image_name(e.target.url)
+            if image_name in self._image_names:
+                alt = self.dump_inlines(e.inlines)
+                src = f"{self._image_output_dir}/{image_name}"
+                return f"![{alt}]({src})"
+
         if not self._no_skip_attachments:
             return self.dump_inlines(e.inlines)
 
