@@ -56,7 +56,7 @@ class ConvertInfo:
 
     @property
     def date(self):
-        return self.meta.touched.date().isoformat()
+        return self.meta.date
 
     @property
     def url_name(self):
