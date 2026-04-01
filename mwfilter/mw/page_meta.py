@@ -79,7 +79,8 @@ class PageMeta:
 
     @property
     def date(self):
-        return self.touched.date().isoformat()
+        dt = self.last_rev_time or self.touched
+        return dt.date().isoformat()
 
     @property
     def json_filename(self) -> str:
