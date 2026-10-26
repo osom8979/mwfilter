@@ -34,6 +34,7 @@ class PageMeta:
     method_version: Optional[int] = None
     redirect_pagename: Optional[str] = None
     authors: List[str] = field(default_factory=list)
+    edits: int = 0
 
     @classmethod
     def from_page(cls, page: Page):

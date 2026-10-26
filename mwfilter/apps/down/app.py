@@ -75,6 +75,7 @@ class DownApp:
         meta = PageMeta.from_page(page)
         revs = list(revisions)
         meta.authors = list(set(rev["user"] for rev in revs))
+        meta.edits = len(revs)
         if revs:
             # Revisions are listed newest first, so the last one is the creation
             meta.created_time = datetime(*revs[-1]["timestamp"][:6])

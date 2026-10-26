@@ -215,6 +215,8 @@ class PandocToMarkdownDumper(DumperInterface):
         if meta.authors:
             authors = list(MetaString(author) for author in meta.authors)
             pandoc.meta["authors"] = MetaList(authors)  # type: ignore[arg-type]
+        if meta.edits:
+            pandoc.meta["edits"] = MetaString(str(meta.edits))
 
     def dump(self, pandoc: Pandoc, meta: Optional[PageMeta] = None) -> str:
         if meta is not None:
