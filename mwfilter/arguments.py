@@ -98,6 +98,7 @@ DEFAULT_SITEMAP_PAGE: Final[str] = "Mwfilter:Sitemap"
 DEFAULT_SITEMAP_FILENAME: Final[str] = "sitemap"
 DEFAULT_EXCLUDE_PAGE: Final[str] = "Mwfilter:Exclude"
 DEFAULT_EXCLUDE_YML: Final[str] = "exclude.yml"
+DEFAULT_BUILD_STAMP_JSON: Final[str] = "build-stamp.json"
 DEFAULT_IMAGE_PAGE: Final[str] = "Mwfilter:Images"
 DEFAULT_IMAGE_OUTPUT_DIR: Final[str] = "docs/assets/images"
 DEFAULT_PAGES_DIRNAME: Final[str] = "pages"
@@ -170,6 +171,16 @@ def add_build_parser(subparsers) -> None:
         action="store_true",
         default=False,
         help="Build all cache files and directories.",
+    )
+    parser.add_argument(
+        "--changed",
+        action="store_true",
+        default=False,
+        help=(
+            "Build only pages whose cache files are newer than the markdown file. "
+            "Everything is built again when the page list, images, exclude "
+            "settings or mwfilter version change. Used with '--all'."
+        ),
     )
     parser.add_argument(
         "--dry-run",

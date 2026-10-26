@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
 
+import json
 import os
 from argparse import Namespace
+from hashlib import sha256
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 import yaml
 from type_serialize import deserialize
 
+from mwfilter import __version__ as mwfilter_version
 from mwfilter.arguments import METHOD_VERSIONS
 from mwfilter.logging.logging import logger
 from mwfilter.arguments import DEFAULT_IMAGE_PAGE
-from mwfilter.mw.cache_dirs import pages_cache_dirpath, exclude_filepath
+from mwfilter.mw.cache_dirs import (
+    build_stamp_filepath,
+    exclude_filepath,
+    pages_cache_dirpath,
+)
 from mwfilter.mw.convert_info import ConvertInfo
 from mwfilter.mw.exclude import Exclude
 from mwfilter.mw.image_list import ImageList
@@ -58,6 +65,7 @@ class BuildApp:
         assert args.method_version in METHOD_VERSIONS
         assert isinstance(args.mkdocs_yml, str)
         assert isinstance(args.all, bool)
+        assert isinstance(args.changed, bool)
         assert isinstance(args.dry_run, bool)
         assert isinstance(args.pages, list)
         assert isinstance(args.start_index, int)
@@ -71,9 +79,11 @@ class BuildApp:
         self._method_version = args.method_version
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._exclude_yml = exclude_filepath(args.cache_dir, self._hostname)
+        self._build_stamp_json = build_stamp_filepath(args.cache_dir, self._hostname)
         self._start_index = args.start_index
         self._mkdocs_yml = Path(expand_abspath(args.mkdocs_yml))
         self._all = args.all
+        self._changed = args.changed
         self._dry_run = args.dry_run
         self._pages = list(str(page_name) for page_name in args.pages)
         self._jobs = args.jobs if 1 <= args.jobs else (cpu_count() * 2)
@@ -167,7 +177,46 @@ class BuildApp:
 
         return info
 
+    def build_stamp(self, filenames: List[str], image_names: List[str]) -> str:
+        # Inputs shared by every page; any change can alter the output of all pages
+        stamp = {
+            "mwfilter_version": mwfilter_version,
+            "method_version": self._method_version,
+            "exclude": sha256(self._exclude_yml.read_bytes()).hexdigest(),
+            "filenames": sorted(filenames),
+            "image_names": sorted(image_names),
+        }
+        return sha256(json.dumps(stamp).encode("utf-8")).hexdigest()
+
+    def read_build_stamps(self) -> Dict[str, str]:
+        if not self._build_stamp_json.is_file():
+            return dict()
+        try:
+            stamps = json.loads(self._build_stamp_json.read_text())
+        except BaseException as e:
+            logger.warning(f"Unreadable build stamp file: {e}")
+            return dict()
+        return stamps if isinstance(stamps, dict) else dict()
+
+    def write_build_stamp(self, docs_dirpath: Path, stamp: str) -> None:
+        stamps = self.read_build_stamps()
+        stamps[str(docs_dirpath)] = stamp
+        self._build_stamp_json.write_text(json.dumps(stamps, indent=2))
+
+    @staticmethod
+    def is_outdated(docs_dirpath: Path, info: ConvertInfo) -> bool:
+        markdown_path = docs_dirpath / info.markdown_filename
+        if not markdown_path.is_file():
+            return True
+        markdown_mtime = markdown_path.stat().st_mtime
+        meta_mtime = Path(info.meta_path).stat().st_mtime
+        text_mtime = Path(info.text_path).stat().st_mtime
+        return markdown_mtime < max(meta_mtime, text_mtime)
+
     def run(self) -> None:
+        if self._changed and not self._all:
+            raise ValueError("The '--changed' argument requires '--all'")
+
         if not self._mkdocs_yml.is_file():
             mkdocs_yml = str(self._mkdocs_yml)
             raise FileNotFoundError(f"Not found mkdocs config file: '{mkdocs_yml}'")
@@ -223,9 +272,20 @@ class BuildApp:
 
         docs_dirpath = self._mkdocs_yml.parent / docs_dir
         values = list(infos.values())
-        source_count = len(infos)
-        max_index = source_count - 1
         filenames = list(infos.keys())
+
+        build_stamp = str()
+        if self._changed:
+            build_stamp = self.build_stamp(filenames, image_names)
+            prev_stamp = self.read_build_stamps().get(str(docs_dirpath))
+            if build_stamp == prev_stamp:
+                values = [v for v in values if self.is_outdated(docs_dirpath, v)]
+                logger.info(f"Changed pages: {len(values)}/{len(infos)}")
+            else:
+                logger.info("Build inputs have changed; build all pages")
+
+        source_count = len(values)
+        max_index = source_count - 1
 
         if self._yes and not self._dry_run:
             build_args: List[BuildTuple] = list()
@@ -243,6 +303,9 @@ class BuildApp:
 
             with Pool(processes=self._jobs) as pool:
                 pool.map(self.build, build_args)
+
+            if build_stamp:
+                self.write_build_stamp(docs_dirpath, build_stamp)
         else:
             for i in range(self._start_index, source_count):
                 info = values[i]
