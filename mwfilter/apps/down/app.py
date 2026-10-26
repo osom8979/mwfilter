@@ -3,7 +3,8 @@
 import json
 import os
 from argparse import Namespace
-from typing import Optional, Sequence, Tuple
+from pathlib import Path
+from typing import Optional, Sequence, Set, Tuple
 
 from mwclient import Site
 from mwclient.listing import RevisionsIterator
@@ -35,6 +36,8 @@ class DownApp:
         assert isinstance(args.namespace, int)
         assert isinstance(args.no_expand_templates, bool)
         assert isinstance(args.all, bool)
+        assert isinstance(args.changed, bool)
+        assert isinstance(args.prune, bool)
         assert isinstance(args.pages, list)
 
         self._hostname = args.hostname
@@ -46,6 +49,8 @@ class DownApp:
         self._namespace = args.namespace
         self._no_expand_templates = args.no_expand_templates
         self._all = args.all
+        self._changed = args.changed
+        self._prune = args.prune
         self._pages_dir = pages_cache_dirpath(args.cache_dir, self._hostname)
         self._exclude_path = exclude_filepath(args.cache_dir, self._hostname)
         self._pages = list(str(page_name) for page_name in args.pages)
@@ -74,7 +79,33 @@ class DownApp:
             meta.redirect_pagename = PageMeta.normalize_page_name(redirect_pagename)
         return meta, content
 
+    def is_unchanged(self, page: Page) -> bool:
+        meta = PageMeta.from_page(page)
+        json_path = self._pages_dir / meta.json_filename
+        wiki_path = self._pages_dir / meta.wiki_filename
+
+        if not json_path.is_file() or not wiki_path.is_file():
+            return False
+
+        try:
+            cached = json.loads(json_path.read_text())
+        except BaseException as e:
+            logger.warning(f"Unreadable cache file: '{str(json_path)}' ({e})")
+            return False
+
+        current = serialize(meta)
+        assert isinstance(cached, dict)
+        assert isinstance(current, dict)
+
+        # 'touched' is also updated when an expanded template changes
+        keys = ("revision", "touched")
+        return all(cached.get(key) == current.get(key) for key in keys)
+
     def download_page(self, page: Page, i: int) -> None:
+        if self._changed and self.is_unchanged(page):
+            logger.debug(f"Unchanged ({i}): {page.name}")
+            return
+
         meta, content = self.page_to_meta(page)
         meta_json = json.dumps(serialize(meta))
 
@@ -96,9 +127,41 @@ class DownApp:
             if not self._ignore_errors:
                 raise
 
-    def download_allpages(self, site: Site) -> None:
+    def download_allpages(self, site: Site) -> Tuple[Set[Path], Set[int]]:
+        json_paths = set()
+        page_ids = set()
         for i, page in enumerate(site.allpages(namespace=self._namespace), start=1):
+            meta = PageMeta.from_page(page)
+            json_paths.add(self._pages_dir / meta.json_filename)
+            page_ids.add(meta.page_id)
             self.download_page(page, i)
+        return json_paths, page_ids
+
+    def prune_pages(self, json_paths: Set[Path], page_ids: Set[int]) -> None:
+        for json_path in list(self._pages_dir.rglob("*.json")):
+            # Compare as Path objects; 'A://b' and 'A:/b' are the same file
+            if json_path in json_paths:
+                continue
+
+            try:
+                cached = json.loads(json_path.read_text())
+                namespace = cached.get("namespace", 0)
+                page_id = cached.get("page_id", 0)
+            except BaseException as e:
+                logger.warning(f"Unreadable cache file: '{str(json_path)}' ({e})")
+                continue
+
+            if namespace != self._namespace:
+                continue
+
+            # Copies made by the 'index' or 'nav' commands keep the source page id
+            if page_id in page_ids:
+                continue
+
+            logger.info(f"Prune: {str(json_path.relative_to(self._pages_dir))}")
+            wiki_path = Path(str(json_path).removesuffix(".json") + ".wiki")
+            json_path.unlink(missing_ok=True)
+            wiki_path.unlink(missing_ok=True)
 
     def request_page(self, site: Site, page_name: str) -> Page:
         try:
@@ -130,8 +193,13 @@ class DownApp:
 
         site = self.create_site()
 
+        if self._prune and not self._all:
+            raise ValueError("The '--prune' argument requires '--all'")
+
         if self._all:
-            self.download_allpages(site)
+            json_paths, page_ids = self.download_allpages(site)
+            if self._prune:
+                self.prune_pages(json_paths, page_ids)
 
         if self._pages:
             self.download_pages(site, self._pages)

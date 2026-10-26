@@ -270,6 +270,21 @@ def add_down_parser(subparsers) -> None:
         help="Selects all pages in the specified namespace.",
     )
     parser.add_argument(
+        "--changed",
+        action="store_true",
+        default=False,
+        help="Skip pages whose cached revision and touched time match the server.",
+    )
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        default=False,
+        help=(
+            "Remove cached pages of the specified namespace "
+            "that no longer exist on the server. Used with '--all'."
+        ),
+    )
+    parser.add_argument(
         "pages",
         nargs=REMAINDER,
         help="Names of downloaded pages.",
