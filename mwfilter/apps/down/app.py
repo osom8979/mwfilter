@@ -3,6 +3,7 @@
 import json
 import os
 from argparse import Namespace
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Sequence, Set, Tuple
 
@@ -72,7 +73,11 @@ class DownApp:
         revisions = page.revisions()
         assert isinstance(revisions, RevisionsIterator)
         meta = PageMeta.from_page(page)
-        meta.authors = list(set(rev["user"] for rev in revisions))
+        revs = list(revisions)
+        meta.authors = list(set(rev["user"] for rev in revs))
+        if revs:
+            # Revisions are listed newest first, so the last one is the creation
+            meta.created_time = datetime(*revs[-1]["timestamp"][:6])
         content = page.text(expandtemplates=not self._no_expand_templates)
         if meta.redirect:
             redirect_pagename = parse_redirect_pagename(content)

@@ -29,6 +29,7 @@ class PageMeta:
     restriction_types: List[str] = field(default_factory=list)
     edit_time: Optional[datetime] = None
     last_rev_time: Optional[datetime] = None
+    created_time: Optional[datetime] = None
 
     method_version: Optional[int] = None
     redirect_pagename: Optional[str] = None
@@ -79,6 +80,11 @@ class PageMeta:
 
     @property
     def date(self):
+        dt = self.created_time or self.last_rev_time or self.touched
+        return dt.date().isoformat()
+
+    @property
+    def lastmod(self):
         dt = self.last_rev_time or self.touched
         return dt.date().isoformat()
 
