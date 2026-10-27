@@ -172,7 +172,7 @@ class BuildApp:
         info = item.info
 
         if not exclude.filter_with_title(info.filename):
-            logger.warning(f"Filtered page: '{info.filename}'")
+            logger.debug(f"Filtered page: '{info.filename}'")
             return None
 
         return info
