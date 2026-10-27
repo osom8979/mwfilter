@@ -3,6 +3,7 @@
 import json
 import os
 from argparse import Namespace
+from pathlib import Path
 
 from type_serialize import deserialize, serialize
 
@@ -37,10 +38,19 @@ class CopyApp:
         self._namespace = args.namespace
         self._method_version = args.method_version
 
+    @staticmethod
+    def is_same(path: Path, text: str) -> bool:
+        return path.is_file() and path.read_text() == text
+
     def save(self, meta: PageMeta, content: str) -> None:
         meta_json = json.dumps(serialize(meta))
         json_path = self._pages_dir / meta.json_filename
         wiki_path = self._pages_dir / meta.wiki_filename
+
+        # Keep the mtime of unchanged files; 'build --changed' compares it
+        if self.is_same(json_path, meta_json) and self.is_same(wiki_path, content):
+            logger.debug(f"Unchanged: '{self._dest}'")
+            return
 
         try:
             if ask_overwrite(json_path, force_yes=self._yes):
